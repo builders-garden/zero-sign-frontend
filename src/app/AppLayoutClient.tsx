@@ -2,12 +2,14 @@
 import { Sidebar } from "@/components/Sidebar";
 import { ReactNode, createContext, useContext, useState } from "react";
 import { ConnectWallet } from "@/components/ConnectWallet";
+import { useAccount } from "wagmi";
 
 // Context for the connected ZK Safe
 const ConnectedSafeContext = createContext<{
   connectedSafe: string | undefined;
   setConnectedSafe: (address: string | undefined) => void;
 }>({ connectedSafe: undefined, setConnectedSafe: () => {} });
+
 
 export function useConnectedSafe() {
   return useContext(ConnectedSafeContext);
