@@ -6,7 +6,7 @@ import { Home, PlusCircle, Download, FilePlus2, List } from "lucide-react";
 const navItems = [
   { href: "/app", label: "Home", icon: Home },
   { href: "/app/create", label: "Create ZK Safe", icon: PlusCircle },
-  { href: "/app/import", label: "Import ZK Safe", icon: Download },
+  //{ href: "/app/import", label: "Import ZK Safe", icon: Download },
   { href: "/app/proposal/new", label: "Create Proposal", icon: FilePlus2 },
   { href: "/app/proposals", label: "Proposals", icon: List },
 ];
