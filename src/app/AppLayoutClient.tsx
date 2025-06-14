@@ -10,7 +10,6 @@ const ConnectedSafeContext = createContext<{
   setConnectedSafe: (address: string | undefined) => void;
 }>({ connectedSafe: undefined, setConnectedSafe: () => {} });
 
-
 export function useConnectedSafe() {
   return useContext(ConnectedSafeContext);
 }
@@ -26,7 +25,7 @@ export default function AppLayoutClient({ children }: { children: ReactNode }) {
         <Sidebar connectedSafe={connectedSafe} />
         <div className="flex-1 flex flex-col">
           {/* Top bar */}
-          <div className="w-full flex justify-end items-center h-16 px-8 border-b border-neutral-800 bg-neutral-950">
+          <div className="w-full flex justify-end items-center h-16 px-8 bg-neutral-950">
             <ConnectWallet />
           </div>
           {/* Main content */}

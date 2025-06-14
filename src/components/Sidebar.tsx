@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, PlusCircle, Download, FilePlus2, List } from "lucide-react";
+import {
+  Home,
+  PlusCircle,
+  Download,
+  FilePlus2,
+  List,
+  HelpCircle,
+} from "lucide-react";
 
 const navItems = [
   { href: "/app", label: "Home", icon: Home },
@@ -9,13 +16,14 @@ const navItems = [
   //{ href: "/app/import", label: "Import ZK Safe", icon: Download },
   { href: "/app/proposal/new", label: "Create Proposal", icon: FilePlus2 },
   { href: "/app/proposals", label: "Proposals", icon: List },
+  { href: "/app/help", label: "How it works", icon: HelpCircle },
 ];
 
 export function Sidebar({ connectedSafe }: { connectedSafe?: string }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex flex-col w-64 h-full bg-neutral-900 border-r border-neutral-800 py-6 px-4">
+    <aside className="flex flex-col w-64 min-h-screen bg-neutral-900 border-r border-neutral-800 py-6 px-4">
       <div className="flex items-center justify-between mb-4">
         <span className="text-xl font-bold tracking-wide">ZeroSig</span>
       </div>
@@ -26,13 +34,13 @@ export function Sidebar({ connectedSafe }: { connectedSafe?: string }) {
           {connectedSafe}
         </div>
       )}
-      <nav className="flex flex-col gap-2">
+      <nav className="flex flex-col gap-4">
         {navItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             className={cn(
-              "flex items-center gap-3 px-4 py-2 rounded-lg transition-colors font-medium text-neutral-200 hover:bg-green-600/10 hover:text-green-400",
+              "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium text-neutral-200 hover:bg-green-600/10 hover:text-green-400",
               pathname === href && "bg-green-600/20 text-green-400"
             )}
           >
