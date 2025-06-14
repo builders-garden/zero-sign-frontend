@@ -1,9 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaLibSQL } from "@prisma/adapter-libsql";
-import { env } from "./env";
 
-const adapter = new PrismaLibSQL({
-  url: env.TURSO_DATABASE_URL || "",
-  authToken: env.TURSO_AUTH_TOKEN,
+// Use local SQLite for now to avoid webpack issues with LibSQL adapter
+export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: "file:./dev.db",
+    },
+  },
 });
-export const prisma = new PrismaClient({ adapter });
