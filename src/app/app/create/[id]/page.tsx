@@ -73,9 +73,9 @@ export default function SafeSigningPage() {
     try {
       const messageWithoutPrefix = safeData.zkOwnerAddress.replace("0x", "");
       const message = `${messageWithoutPrefix}`;
-        //TODO: drone.sh
+      
       signMessage(
-        { message },
+        { account: address, message },
         {
           onSuccess: async (signature) => {
             try {
@@ -118,9 +118,10 @@ export default function SafeSigningPage() {
     if (!safeData) return;
 
     setDeploying(true);
+    console.log("safeData", safeData);
 
     try {
-      const response = await fetch("/api/safe-deploy", {
+      const response = await fetch("/api/safe-create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -2890,6 +2890,11 @@ export const ZK_OWNER_FACTORY_ABI = [
        "internalType": "address",
        "name": "_safeFallbackHandlerAddress",
        "type": "address"
+      },
+      {
+       "internalType": "address",
+       "name": "_verifier",
+       "type": "address"
       }
      ],
      "stateMutability": "nonpayable",
@@ -2942,14 +2947,14 @@ export const ZK_OWNER_FACTORY_ABI = [
     {
      "inputs": [
       {
-       "internalType": "bytes",
-       "name": "initCode",
-       "type": "bytes"
-      },
-      {
        "internalType": "uint256",
        "name": "threshold",
        "type": "uint256"
+      },
+      {
+       "internalType": "bytes32[]",
+       "name": "identifiers",
+       "type": "bytes32[]"
       }
      ],
      "name": "deploy",
@@ -3034,6 +3039,19 @@ export const ZK_OWNER_FACTORY_ABI = [
     },
     {
      "inputs": [],
+     "name": "recursiveVerifier",
+     "outputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
      "name": "safeFallbackHandlerAddress",
      "outputs": [
       {
@@ -3071,9 +3089,7 @@ export const ZK_OWNER_FACTORY_ABI = [
      "stateMutability": "nonpayable",
      "type": "function"
     }
-] as const;
+   ] as const;
 
-
-
-export const ZK_OWNER_FACTORY_ADDRESS = "0x65EEB4dDf0E4d8e414be60Fa32C031d702420F21";
+export const ZK_OWNER_FACTORY_ADDRESS = "0x0433cA2855370dBC0223350b9C72e1bAbE378035";
 export const EMPTY_ADDRESS = "0x0000000000000000000000000000000000000000";

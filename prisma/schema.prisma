@@ -24,6 +24,7 @@ model SafeSignature {
   id         String @id @default(cuid())
   signerAddress String
   signature  String
+  signatureHash String
   safe       Safe   @relation(fields: [safeId], references: [id])
   safeId     String
   createdAt  DateTime @default(now())

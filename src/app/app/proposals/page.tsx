@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAccount, useSignMessage } from "wagmi";
 
 interface Proof {
   id: number;
@@ -22,12 +23,16 @@ interface Proposal {
 }
 
 export default function ProposalsListPage() {
+  const { address, isConnected } = useAccount();
+  const { signMessage } = useSignMessage();
+
   const [safeAddress, setSafeAddress] = useState("");
   const [filteredProposals, setFilteredProposals] = useState<Proposal[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [showProofs, setShowProofs] = useState<{ [key: number]: boolean }>({});
   const [hasSearched, setHasSearched] = useState(false);
+  const [signingProposal, setSigningProposal] = useState<number | null>(null);
 
   const searchProposalsBySafe = async () => {
     if (!safeAddress.trim()) {
@@ -83,6 +88,72 @@ export default function ProposalsListPage() {
       ...prev,
       [proposalId]: !prev[proposalId],
     }));
+  };
+
+  const handleSignProposal = async (proposal: Proposal) => {
+    if (!address || !isConnected) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    // Check if already signed
+    const alreadySigned = proposal.proofs.some((proof) =>
+      proof.value.includes(address)
+    );
+
+    if (alreadySigned) {
+      alert("You may have already signed this proposal");
+    }
+
+    setSigningProposal(proposal.id);
+
+    try {
+      const message = `Sign proposal #${proposal.id} for Safe ${proposal.safeAddress}: ${proposal.calldata}`;
+
+      signMessage(
+        { message },
+        {
+          onSuccess: async (signature) => {
+            try {
+              const response = await fetch("/api/proof-save", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  proposalId: proposal.id,
+                  signature,
+                  signerAddress: address,
+                }),
+              });
+
+              if (response.ok) {
+                alert("Signature added successfully!");
+                searchProposalsBySafe(); // Refresh proposals
+              } else {
+                const error = await response.json();
+                alert(error.error || "Failed to add signature");
+              }
+            } catch (error) {
+              console.error("Error adding signature:", error);
+              alert("Failed to add signature");
+            }
+          },
+          onError: (error) => {
+            console.error("Error signing message:", error);
+            alert("Failed to sign message");
+          },
+        }
+      );
+    } finally {
+      setSigningProposal(null);
+    }
+  };
+
+  const copyProposalLink = (proposalId: number) => {
+    const shareableUrl = `${window.location.origin}/app/proposal/${proposalId}`;
+    navigator.clipboard.writeText(shareableUrl);
+    alert("Proposal link copied to clipboard!");
   };
 
   return (
@@ -236,14 +307,42 @@ export default function ProposalsListPage() {
                       <div className="text-sm text-neutral-400">
                         Threshold: {proposal.threshold} signatures required
                       </div>
-                      <Button
-                        onClick={() => toggleProofs(proposal.id)}
-                        variant="outline"
-                        className="border-neutral-600 text-black bg-gray-200 hover:bg-gray-300"
-                      >
-                        {showProofDetails ? "Hide" : "Show"} Proofs (
-                        {proposal.proofs.length})
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => copyProposalLink(proposal.id)}
+                          variant="outline"
+                          className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
+                        >
+                          Share
+                        </Button>
+                        <Link href={`/app/proposal/${proposal.id}`}>
+                          <Button
+                            variant="outline"
+                            className="border-green-500 text-green-400 hover:bg-green-500/10"
+                          >
+                            View Details
+                          </Button>
+                        </Link>
+                        <Button
+                          onClick={() => handleSignProposal(proposal)}
+                          disabled={
+                            signingProposal === proposal.id || !isConnected
+                          }
+                          className="bg-blue-500 hover:bg-blue-400 text-white"
+                        >
+                          {signingProposal === proposal.id
+                            ? "Signing..."
+                            : "Sign"}
+                        </Button>
+                        <Button
+                          onClick={() => toggleProofs(proposal.id)}
+                          variant="outline"
+                          className="border-neutral-600 text-black bg-gray-200 hover:bg-gray-300"
+                        >
+                          {showProofDetails ? "Hide" : "Show"} Proofs (
+                          {proposal.proofs.length})
+                        </Button>
+                      </div>
                     </div>
 
                     {showProofDetails && (

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addSignatureToSafe, getSafeById } from "@/lib/prisma";
+import { hashMessage, keccak256 } from "viem";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,11 +19,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Safe not found" }, { status: 404 });
     }
 
+    //remove prefix 0x from the signature
+    const signatureWithoutPrefix = signature.replace("0x", "");
+
     // Add signature
     const newSignature = await addSignatureToSafe({
       safeId,
       signerAddress,
       signature,
+      signatureHash: keccak256(signature as `0x${string}`),
     });
 
     // Get updated safe with all signatures

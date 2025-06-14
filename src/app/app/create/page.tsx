@@ -13,6 +13,7 @@ interface PrecomputedSafe {
 export default function CreateMultisigPage() {
   const { address, isConnected } = useAccount();
   const [threshold, setThreshold] = useState(1);
+  const [description, setDescription] = useState("");
   const [isPrecomputing, setIsPrecomputing] = useState(false);
   const [precomputedSafe, setPrecomputedSafe] =
     useState<PrecomputedSafe | null>(null);
@@ -71,6 +72,7 @@ export default function CreateMultisigPage() {
   const resetForm = () => {
     setPrecomputedSafe(null);
     setThreshold(1);
+    setDescription("");
   };
 
   return (
@@ -79,6 +81,27 @@ export default function CreateMultisigPage() {
       <div className="bg-neutral-800 rounded-xl p-8 text-neutral-300 flex flex-col gap-6">
         {!precomputedSafe ? (
           <>
+            <div className="bg-neutral-900 rounded-lg p-4 mb-4">
+              <h3 className="font-semibold mb-2 text-blue-400">How it works</h3>
+              <div className="text-sm text-neutral-300 space-y-2">
+                <p>
+                  1. Set your desired threshold (number of signatures required)
+                </p>
+                <p>
+                  2. Click "Precompute Address" to generate your ZK Safe's
+                  unique address
+                </p>
+                <p>
+                  3. Share the generated link with signers to collect their
+                  signatures
+                </p>
+                <p>
+                  4. Once enough signatures are collected, deploy your Safe
+                  contract
+                </p>
+              </div>
+            </div>
+
             <div>
               <h3 className="font-semibold mb-2">Threshold</h3>
               <input

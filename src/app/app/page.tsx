@@ -105,23 +105,6 @@ export default function AppHome() {
           </div>
         </div>
       </div>
-
-      {/* Getting Started */}
-      <div className="text-center mt-12">
-        <h2 className="text-2xl font-bold mb-4">Ready for Private Multisig?</h2>
-        <p className="text-neutral-400 mb-6">
-          Deploy your privacy-enhanced Safe multisig and start protecting your
-          signers' identities.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button className="bg-green-500 hover:bg-green-400 text-black font-bold py-3 px-6 rounded-xl transition-colors">
-            Create Private Safe
-          </button>
-          <button className="border border-green-500 text-green-400 hover:bg-green-500/10 font-bold py-3 px-6 rounded-xl transition-colors">
-            Learn How It Works
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -192,11 +192,13 @@ export async function addSignatureToSafe(data: {
   safeId: string;
   signerAddress: string;
   signature: string;
+  signatureHash: string;
 }) {
   return prisma.safeSignature.create({
     data: {
       safeId: data.safeId,
       signerAddress: data.signerAddress,
+      signatureHash: data.signatureHash,
       signature: data.signature,
     },
   });
