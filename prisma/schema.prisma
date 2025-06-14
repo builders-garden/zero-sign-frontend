@@ -9,13 +9,15 @@ datasource db {
 }
 
 model Proposal {
-  id        Int     @id @default(autoincrement())
-  calldata  String
-  to        String
-  value     String
-  nonce     Int
-  threshold Int
-  proofs    Proof[]
+  id             Int     @id @default(autoincrement())
+  calldata       String
+  to             String
+  value          String
+  nonce          Int
+  threshold      Int
+  zkOwnerAddress String
+  safeAddress    String
+  proofs         Proof[]
 }
 
 model Proof {

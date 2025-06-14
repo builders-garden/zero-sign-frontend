@@ -9,6 +9,8 @@ async function main() {
       value: "1000000000000000000",
       nonce: 1,
       threshold: 2,
+      zkOwnerAddress: "0x1234567890123456789012345678901234567890",
+      safeAddress: "0x9876543210987654321098765432109876543210",
     },
   });
 
