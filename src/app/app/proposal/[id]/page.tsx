@@ -3,9 +3,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAccount, useSignMessage } from "wagmi";
 import { useParams } from "next/navigation";
-import { encodeAbiParameters, keccak256, recoverPublicKey } from 'viem'
+import { encodeAbiParameters, keccak256, recoverPublicKey } from "viem";
 import Link from "next/link";
-import { prisma } from "@/lib/client";
 import { Barretenberg, RawBuffer, UltraHonkBackend } from "@aztec/bb.js";
 import { CompiledCircuit, Noir } from "@noir-lang/noir_js";
 import ecdsa_multisig from "../../../../../public/proof/ecdsa_multisig.json";
@@ -36,7 +35,8 @@ interface Proposal {
 }
 
 function proofToFields(bytes: Uint8Array | string): string[] {
-  const byteArray = typeof bytes === 'string' ? new Uint8Array(Buffer.from(bytes)) : bytes;
+  const byteArray =
+    typeof bytes === "string" ? new Uint8Array(Buffer.from(bytes)) : bytes;
   const fields = [];
   for (let i = 0; i < byteArray.length; i += 32) {
     const fieldBytes = new Uint8Array(32);
@@ -55,12 +55,24 @@ export default function ProposalDetailsPage() {
   const { address, isConnected } = useAccount();
   const { signMessage } = useSignMessage();
 
-  const [operationSignature, setOperationSignature] = useState<`0x${string}` | null>(null);
-  const [operationSignaturePubX, setOperationSignaturePubX] = useState<string | null>(null);
-  const [operationSignaturePubY, setOperationSignaturePubY] = useState<string | null>(null);
-  const [identitySignature, setIdentitySignature] = useState<`0x${string}` | null>(null);
-  const [identitySignaturePubX, setIdentitySignaturePubX] = useState<string | null>(null);
-  const [identitySignaturePubY, setIdentitySignaturePubY] = useState<string | null>(null);
+  const [operationSignature, setOperationSignature] = useState<
+    `0x${string}` | null
+  >(null);
+  const [operationSignaturePubX, setOperationSignaturePubX] = useState<
+    string | null
+  >(null);
+  const [operationSignaturePubY, setOperationSignaturePubY] = useState<
+    string | null
+  >(null);
+  const [identitySignature, setIdentitySignature] = useState<
+    `0x${string}` | null
+  >(null);
+  const [identitySignaturePubX, setIdentitySignaturePubX] = useState<
+    string | null
+  >(null);
+  const [identitySignaturePubY, setIdentitySignaturePubY] = useState<
+    string | null
+  >(null);
 
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,156 +122,237 @@ export default function ProposalDetailsPage() {
     setSigning(true);
 
     try {
-      //sign encode of to, value and data
-      const messageToSign = encodeAbiParameters([{ type: "address" }, { type: "uint256" }, { type: "bytes" }], [proposal.to as `0x${string}`, BigInt(proposal.value), proposal.calldata as `0x${string}`]);
+      // Step 1: Sign the operation message
+      const messageToSign = encodeAbiParameters(
+        [{ type: "address" }, { type: "uint256" }, { type: "bytes" }],
+        [
+          proposal.to as `0x${string}`,
+          BigInt(proposal.value),
+          proposal.calldata as `0x${string}`,
+        ]
+      );
 
-      signMessage(
-        { account: address, message: messageToSign },
-        {
-          onSuccess: async (signature) => {
-            setOperationSignature(signature);
-            const publicKey = await recoverPublicKey({ hash: keccak256(messageToSign), signature: signature });
-            console.log("publicKey", publicKey);
-            setOperationSignaturePubX(publicKey.slice(4, 68));
-            setOperationSignaturePubY(publicKey.slice(68));
-            console.log("operationSignaturePubX", operationSignaturePubX);
-            console.log("operationSignaturePubY", operationSignaturePubY);
-
-            try {
-              const response = await fetch("/api/proof-save", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  proposalId: proposal.id,
-                  signature,
-                  signerAddress: address,
-                }),
-              });
-
-              if (response.ok) {
-                alert("Proof/signature added successfully!");
-                fetchProposal(); // Refresh proposal data
-              } else {
-                const error = await response.json();
-                alert(error.error || "Failed to add proof");
-              }
-            } catch (error) {
-              console.error("Error adding proof:", error);
-              alert("Failed to add proof");
+      console.log("Requesting first signature (operation)...");
+      const operationSig = await new Promise<`0x${string}`>(
+        (resolve, reject) => {
+          signMessage(
+            { account: address, message: messageToSign },
+            {
+              onSuccess: (signature) => resolve(signature),
+              onError: (error) => reject(error),
             }
-          },
-          onError: (error) => {
-            console.error("Error signing message:", error);
-            alert("Failed to sign message");
-          },
+          );
         }
       );
+
+      setOperationSignature(operationSig);
+      const operationPublicKey = await recoverPublicKey({
+        hash: keccak256(messageToSign),
+        signature: operationSig,
+      });
+      const opPubX = operationPublicKey.slice(4, 68);
+      const opPubY = operationPublicKey.slice(68);
+      setOperationSignaturePubX(opPubX);
+      setOperationSignaturePubY(opPubY);
+
+      console.log("First signature completed");
+
+      // Step 2: Sign the identity verification message
+      const messageToSignZkAddress = proposal.zkOwnerAddress;
+      const messageToSignZkAddressWithoutPrefix =
+        messageToSignZkAddress.replace("0x", "");
+
+      console.log("Requesting second signature (identity)...");
+      const identitySig = await new Promise<`0x${string}`>(
+        (resolve, reject) => {
+          signMessage(
+            { account: address, message: messageToSignZkAddressWithoutPrefix },
+            {
+              onSuccess: (signature) => resolve(signature),
+              onError: (error) => reject(error),
+            }
+          );
+        }
+      );
+
+      setIdentitySignature(identitySig);
+      const signatureZkAddressHash = keccak256(identitySig);
+      const identityPublicKey = await recoverPublicKey({
+        hash: signatureZkAddressHash,
+        signature: identitySig,
+      });
+      const identityPubX = identityPublicKey.slice(4, 68);
+      const identityPubY = identityPublicKey.slice(68);
+      setIdentitySignaturePubX(identityPubX);
+      setIdentitySignaturePubY(identityPubY);
+
+      console.log("Second signature completed");
+
+      // Step 3: Save proof/signature to database
+      try {
+        const response = await fetch("/api/proof-save", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            proposalId: proposal.id,
+            safeAddress: proposal.safeAddress,
+            zkOwnerAddress: proposal.zkOwnerAddress,
+            proof: operationSig, // Using the operation signature as the proof
+          }),
+        });
+
+        if (response.ok) {
+          console.log("Proof/signature saved successfully");
+          fetchProposal(); // Refresh proposal data
+        } else {
+          const error = await response.json();
+          console.error("Failed to save proof:", error);
+        }
+      } catch (error) {
+        console.error("Error saving proof:", error);
+      }
+
+      // Step 4: Generate ZK proof
+      await generateZKProof(
+        proposal,
+        operationSig,
+        identitySig,
+        opPubX,
+        opPubY,
+        identityPubX,
+        identityPubY
+      );
+    } catch (error) {
+      console.error("Error in signing process:", error);
+      alert("Failed to complete signing process");
     } finally {
       setSigning(false);
     }
+  };
 
-    //sign another message
-    const messageToSignZkAddress = proposal.zkOwnerAddress;
-    //remove prefix 0x from the message
-    const messageToSignZkAddressWithoutPrefix = messageToSignZkAddress.replace("0x", "");
-    const signatureZkAddress = signMessage({ account: address, message: messageToSignZkAddressWithoutPrefix }, {
-      onSuccess: async (signature) => {
-        console.log("signature", signature);
-        const signatureZkAddressHash = keccak256(signature as `0x${string}`);
-        console.log("signatureZkAddressHash", signatureZkAddressHash);
-        //remove prefix 0x from the signature
-        setIdentitySignature(signature);
-        const publicKey = await recoverPublicKey({ hash: (signatureZkAddressHash), signature: signature });
-        console.log("publicKey", publicKey);
-        setIdentitySignaturePubX(publicKey.slice(4, 68));
-        setIdentitySignaturePubY(publicKey.slice(68));
-        console.log("identitySignaturePubX", identitySignaturePubX);
-        console.log("identitySignaturePubY", identitySignaturePubY);
-      },
-      onError: (error) => {
-        console.error("Error signing message:", error);
-        alert("Failed to sign message");
-      },
-    });
-
+  const generateZKProof = async (
+    proposal: Proposal,
+    operationSignature: `0x${string}`,
+    identitySignature: `0x${string}`,
+    operationPubX: string,
+    operationPubY: string,
+    identityPubX: string,
+    identityPubY: string
+  ) => {
     const threshold = proposal.threshold;
-    //get safe from the proposal
-    const safe = await prisma.safe.findUnique({
-      where: {
-        id: proposal.safeAddress,
-      },
-    });
-    const safeId = safe?.id;
+    console.log("threshold", threshold);
 
-    //get safe signatures hashes from the safe
-    const signaturesHashes = await prisma.safeSignature.findMany({
-      where: {
-        safeId: safeId,
-      },
-    });
-    //get the signatures hashes from the signaturesHashes array
-    const signaturesHashesArray = signaturesHashes.map((signature) => signature.signatureHash);
+    // Fetch safe signatures from API
+    let signaturesHashesArray: string[] = [];
+    try {
+      console.log("proposal.safeAddress", proposal.safeAddress);
+      const signaturesResponse = await fetch(
+        `/api/safe-signatures/${proposal.safeAddress}`
+      );
+      console.log("signaturesResponse.status", signaturesResponse.status);
+
+      if (signaturesResponse.ok) {
+        const signaturesData = await signaturesResponse.json();
+        console.log("signaturesData", signaturesData);
+        signaturesHashesArray = signaturesData.signatureHashes || [];
+        console.log("signaturesHashesArray", signaturesHashesArray);
+      } else {
+        const errorData = await signaturesResponse.json();
+        console.error("API Error:", errorData);
+        alert(
+          `Failed to fetch safe signatures: ${
+            errorData.error || "Unknown error"
+          }`
+        );
+        return;
+      }
+    } catch (error) {
+      console.error("Error fetching safe signatures:", error);
+      alert("Error fetching safe signatures for proof generation");
+      return;
+    }
+    console.log("porcodio");
     const noir = new Noir(ecdsa_multisig as NoirCircuit);
     //@ts-ignore
-    const backend = new UltraHonkBackend((ecdsa_multisig as CompiledCircuit).bytecode, { threads: 4 }, { recursive: true });
-    const messageToSign = encodeAbiParameters([{ type: "address" }, { type: "uint256" }, { type: "bytes" }], [proposal.to as `0x${string}`, BigInt(proposal.value), proposal.calldata as `0x${string}`]);
+    const backend = new UltraHonkBackend(
+      (ecdsa_multisig as CompiledCircuit).bytecode,
+      { threads: 4 },
+      { recursive: true }
+    );
+    const messageToSign = encodeAbiParameters(
+      [{ type: "address" }, { type: "uint256" }, { type: "bytes" }],
+      [
+        proposal.to as `0x${string}`,
+        BigInt(proposal.value),
+        proposal.calldata as `0x${string}`,
+      ]
+    );
 
     const inputs = {
       message_hash: keccak256(messageToSign),
       operation_signature: operationSignature,
       identity_verification_signature: identitySignature,
-      identity_pub_x: identitySignaturePubX,
-      identity_pub_y: identitySignaturePubY,
-      operation_pub_x: operationSignaturePubX,
-      operation_pub_y: operationSignaturePubY,
+      identity_pub_x: operationPubX,
+      identity_pub_y: operationPubY,
+      operation_pub_x: identityPubX,
+      operation_pub_y: identityPubY,
       signers_identifiers: signaturesHashesArray,
       threshold,
-      contract_address: proposal.zkOwnerAddress
+      contract_address: proposal.zkOwnerAddress,
     };
 
-    console.log('Generating witness...');
+    console.log("Final circuit inputs:", inputs);
+    console.log("Generating witness...");
     //@ts-ignore
     const { witness } = await noir.execute(inputs);
-    console.log('Witness generated:', witness);
+    console.log("Witness generated:", witness);
 
-    console.log('Generating proof...');
+    console.log("Generating proof...");
     //@ts-ignore
     const rawProof = await backend.generateProof(witness);
-    console.log('Generated proof:', rawProof);
+    console.log("Generated proof:", rawProof);
     // Verify the proof
     const isVerified = await backend.verifyProof(rawProof);
     console.log("proof verification result:", isVerified);
     if (isVerified) {
-      const proofBytes = `0x${Buffer.from(rawProof.proof).toString('hex')}`;
+      const proofBytes = `0x${Buffer.from(rawProof.proof).toString("hex")}`;
       const publicInputsArray = rawProof.publicInputs.slice(0, 8);
       // Generate recursive proof artifacts
-      const { proof: innerProofFields, publicInputs: innerPublicInputs } = await backend.generateProofForRecursiveAggregation(witness);
+      const { proof: innerProofFields, publicInputs: innerPublicInputs } =
+        await backend.generateProofForRecursiveAggregation(witness);
 
       const publicInputElements = 8;
-      const proofAsFields = [...rawProof.publicInputs.slice(publicInputElements), ...proofToFields(rawProof.proof)];
+      const proofAsFields = [
+        ...rawProof.publicInputs.slice(publicInputElements),
+        ...proofToFields(rawProof.proof),
+      ];
       console.log("proof field length", proofAsFields.length);
 
       console.log("proofAsFields generated");
 
       const innerCircuitVerificationKey = await backend.getVerificationKey();
       if (!innerCircuitVerificationKey) {
-        throw new Error('Verification key could not be retrieved');
+        throw new Error("Verification key could not be retrieved");
       }
 
       const barretenbergAPI = await Barretenberg.new({ threads: 1 });
-      const vkAsFields = (await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey))).map(field => field.toString());
+      const vkAsFields = (
+        await barretenbergAPI.acirVkAsFieldsUltraHonk(
+          new RawBuffer(innerCircuitVerificationKey)
+        )
+      ).map((field) => field.toString());
 
       if (!vkAsFields) {
-        throw new Error('vkAsFields is undefined');
+        throw new Error("vkAsFields is undefined");
       }
 
       const proofData = {
         rawProof,
         vkAsFields,
         proofAsFields: innerProofFields,
-        inputsAsFields: innerPublicInputs
+        inputsAsFields: innerPublicInputs,
       };
     } else {
       alert("Proof verification failed!");
@@ -346,16 +439,18 @@ export default function ProposalDetailsPage() {
       <div className="bg-neutral-800 rounded-xl p-8 text-neutral-300 space-y-6">
         {/* Status Banner */}
         <div
-          className={`p-4 rounded-lg ${isComplete
-            ? "bg-green-900/20 border border-green-500/20"
-            : "bg-yellow-900/20 border border-yellow-500/20"
-            }`}
+          className={`p-4 rounded-lg ${
+            isComplete
+              ? "bg-green-900/20 border border-green-500/20"
+              : "bg-yellow-900/20 border border-yellow-500/20"
+          }`}
         >
           <div className="flex justify-between items-center">
             <div>
               <div
-                className={`text-lg font-semibold ${isComplete ? "text-green-400" : "text-yellow-400"
-                  }`}
+                className={`text-lg font-semibold ${
+                  isComplete ? "text-green-400" : "text-yellow-400"
+                }`}
               >
                 {isComplete ? "✅ Ready to Execute" : "⏳ Pending Signatures"}
               </div>
@@ -367,8 +462,9 @@ export default function ProposalDetailsPage() {
             <div className="text-right">
               <div className="w-full bg-neutral-700 rounded-full h-2 mb-2">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${isComplete ? "bg-green-500" : "bg-yellow-500"
-                    }`}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    isComplete ? "bg-green-500" : "bg-yellow-500"
+                  }`}
                   style={{
                     width: `${Math.min(
                       (committed / proposal.threshold) * 100,
