@@ -1433,10 +1433,10 @@ export const SAFE_ABI = [
         }
       ]
     }
-  ] as const;
+] as const;
 
 
-  export const ZK_OWNER_ABI = [
+export const ZK_OWNER_ABI = [
     {
       "type": "fallback",
       "stateMutability": "nonpayable"
@@ -2871,44 +2871,209 @@ export const SAFE_ABI = [
         }
       ]
     }
-  ] as const;
+] as const;
 
-  export const ZK_OWNER_FACTORY_ABI = [
+export const ZK_OWNER_FACTORY_ABI = [
     {
-      "type": "function",
-      "name": "deploy",
-      "inputs": [
-        {
-          "name": "initData",
-          "type": "bytes",
-          "internalType": "bytes"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "zkOwnerAddress",
-          "type": "address",
-          "internalType": "address"
-        }
-      ],
-      "stateMutability": "nonpayable",
+     "inputs": [
+      {
+       "internalType": "bytes",
+       "name": "_implBytecode",
+       "type": "bytes"
+      },
+      {
+       "internalType": "address",
+       "name": "_safeProxyFactoryAddress",
+       "type": "address"
+      },
+      {
+       "internalType": "address",
+       "name": "_safeFallbackHandlerAddress",
+       "type": "address"
+      }
+     ],
+     "stateMutability": "nonpayable",
+     "type": "constructor"
     },
     {
-      "type": "function",
-      "name": "threshold",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "threshold",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "stateMutability": "view"
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "safeProxyAddress",
+       "type": "address"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "deployedAddress",
+       "type": "address"
+      },
+      {
+       "indexed": true,
+       "internalType": "bytes32",
+       "name": "salt",
+       "type": "bytes32"
+      }
+     ],
+     "name": "ContractDeployed",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "bytes32",
+       "name": "salt",
+       "type": "bytes32"
+      },
+      {
+       "indexed": false,
+       "internalType": "string",
+       "name": "reason",
+       "type": "string"
+      }
+     ],
+     "name": "DeploymentFailed",
+     "type": "event"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "bytes",
+       "name": "initCode",
+       "type": "bytes"
+      },
+      {
+       "internalType": "uint256",
+       "name": "threshold",
+       "type": "uint256"
+      }
+     ],
+     "name": "deploy",
+     "outputs": [
+      {
+       "internalType": "address",
+       "name": "deployedAddress",
+       "type": "address"
+      }
+     ],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "implBytecode",
+     "outputs": [
+      {
+       "internalType": "bytes",
+       "name": "",
+       "type": "bytes"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "nonce",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "name": "nonceByDeployer",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "deployer",
+       "type": "address"
+      },
+      {
+       "internalType": "uint256",
+       "name": "_nonce",
+       "type": "uint256"
+      }
+     ],
+     "name": "precomputeAddress",
+     "outputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "safeFallbackHandlerAddress",
+     "outputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "safeProxyFactoryAddress",
+     "outputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "bytes",
+       "name": "_implBytecode",
+       "type": "bytes"
+      }
+     ],
+     "name": "setBytecode",
+     "outputs": [],
+     "stateMutability": "nonpayable",
+     "type": "function"
     }
-  ] as const;
+] as const;
 
 
 
-export const ZK_OWNER_FACTORY_ADDRESS = "0x0000000000000000000000000000000000000000";
+export const ZK_OWNER_FACTORY_ADDRESS = "0x65EEB4dDf0E4d8e414be60Fa32C031d702420F21";
 export const EMPTY_ADDRESS = "0x0000000000000000000000000000000000000000";

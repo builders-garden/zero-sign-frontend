@@ -6,7 +6,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http, createWalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { sepolia } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { env } from "@/lib/env";
 
 export async function POST(request: NextRequest) {
@@ -22,13 +22,13 @@ export async function POST(request: NextRequest) {
   const initData: `0x${string}` = "0x";
 
   const publicClient = createPublicClient({
-    chain: sepolia,
+    chain: baseSepolia,
     transport: http(),
   });
   const walletClient = createWalletClient({
-    chain: sepolia,
+    chain: baseSepolia,
     transport: http(),
-    account: privateKeyToAccount(env.SEPOLIA_PRIVATE_KEY as `0x${string}`),
+    account: privateKeyToAccount(env.baseSepolia_PRIVATE_KEY as `0x${string}`),
   });
 
   const deploy = await walletClient.writeContract({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
-import { sepolia } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { SAFE_ABI, ZK_OWNER_ABI } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const publicClient = createPublicClient({
-      chain: sepolia,
+      chain: baseSepolia,
       transport: http(),
     });
 

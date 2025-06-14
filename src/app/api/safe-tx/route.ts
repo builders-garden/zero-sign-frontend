@@ -6,42 +6,50 @@ import {
   ZK_OWNER_FACTORY_ADDRESS,
 } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, http, createWalletClient, toBytes, concat, pad, toHex } from "viem";
+import {
+  createPublicClient,
+  http,
+  createWalletClient,
+  toBytes,
+  concat,
+  pad,
+  toHex,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { sepolia } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { env } from "@/lib/env";
 
 export async function POST(request: NextRequest) {
-  const { safeAddress, zkOwnerAddress, to, data, value, proof } = await request.json();
+  const { safeAddress, zkOwnerAddress, to, data, value, proof } =
+    await request.json();
   if (!safeAddress || !zkOwnerAddress || to || !data || !value || !proof) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 }
     );
   }
-  
-  // prepare the signature data for safe - like https://docs.safe.global/advanced/smart-account-signatures#contract-signature-eip-1271
-  console.log('toBytes(proof).length', toBytes(proof).length);
-  console.log('toBytes(proof).length/2', toBytes(proof).length/2);
-  console.log('proof.length/2', proof.length/2);
-  const signature = concat([
-    pad(zkOwnerAddress, {size: 32}),
-    toHex(65, {size: 32}),
-    '0x00',
-    toHex(toBytes(proof).length, {size: 32}),
-    proof
-  ]);
-  console.log('signature', signature);
 
+  // prepare the signature data for safe - like https://docs.safe.global/advanced/smart-account-signatures#contract-signature-eip-1271
+  console.log("toBytes(proof).length", toBytes(proof).length);
+  console.log("toBytes(proof).length/2", toBytes(proof).length / 2);
+  console.log("proof.length/2", proof.length / 2);
+  const signature = concat([
+    pad(zkOwnerAddress, { size: 32 }),
+    toHex(65, { size: 32 }),
+    "0x00",
+    toHex(toBytes(proof).length, { size: 32 }),
+    proof,
+  ]);
+  console.log("signature", signature);
 
   const publicClient = createPublicClient({
-    chain: sepolia,
+    chain: baseSepolia,
     transport: http(),
   });
   const walletClient = createWalletClient({
-    chain: sepolia,
+    chain: baseSepolia,
     transport: http(),
-    account: privateKeyToAccount(env.SEPOLIA_PRIVATE_KEY as `0x${string}`),
+    account: privateKeyToAccount(env.baseSepolia_PRIVATE_KEY as `0x${string}`),
   });
 
   const transaction = await walletClient.writeContract({

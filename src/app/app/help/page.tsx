@@ -57,7 +57,7 @@ export default function HelpPage() {
                   (e.g., 2-of-3, 3-of-5). Configure your ZK owner addresses -
                   these are the signers who can create zero-knowledge proofs
                   without revealing their identity or transaction details
-                  on-chain.
+                  onchain.
                 </p>
               </div>
             </div>

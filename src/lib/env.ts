@@ -6,7 +6,7 @@ export const env = createEnv({
   server: {
     TURSO_DATABASE_URL: z.string().min(1),
     TURSO_AUTH_TOKEN: z.string().min(1),
-    SEPOLIA_PRIVATE_KEY: z.string().min(1),
+    baseSepolia_PRIVATE_KEY: z.string().min(1),
   },
   client: {
     //NEXT_PUBLIC_URL: z.string().min(1),

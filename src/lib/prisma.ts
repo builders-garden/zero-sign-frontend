@@ -110,3 +110,104 @@ export async function createProposal(data: {
     include: { proofs: true },
   });
 }
+
+// Safe operations
+export async function createSafe(data: {
+  zkOwnerAddress: string;
+  signers?: string[];
+  threshold?: number;
+}) {
+  return prisma.safe.create({
+    data: {
+      zkOwnerAddress: data.zkOwnerAddress,
+      signers: JSON.stringify(data.signers || []),
+      threshold: data.threshold || 1,
+    },
+    include: { signatures: true },
+  });
+}
+
+export async function updateSafe(
+  id: string,
+  data: {
+    signers?: string[];
+    threshold?: number;
+    address?: string;
+    deployed?: boolean;
+  }
+) {
+  const updateData: any = {};
+
+  if (data.signers) {
+    updateData.signers = JSON.stringify(data.signers);
+  }
+  if (data.threshold !== undefined) {
+    updateData.threshold = data.threshold;
+  }
+  if (data.address !== undefined) {
+    updateData.address = data.address;
+  }
+  if (data.deployed !== undefined) {
+    updateData.deployed = data.deployed;
+  }
+
+  return prisma.safe.update({
+    where: { id },
+    data: updateData,
+    include: { signatures: true },
+  });
+}
+
+export async function getSafeById(id: string) {
+  const safe = await prisma.safe.findUnique({
+    where: { id },
+    include: { signatures: true },
+  });
+
+  if (safe) {
+    return {
+      ...safe,
+      signers: JSON.parse(safe.signers),
+    };
+  }
+  return null;
+}
+
+export async function getSafeByZkOwnerAddress(zkOwnerAddress: string) {
+  const safe = await prisma.safe.findUnique({
+    where: { zkOwnerAddress },
+    include: { signatures: true },
+  });
+
+  if (safe) {
+    return {
+      ...safe,
+      signers: JSON.parse(safe.signers),
+    };
+  }
+  return null;
+}
+
+export async function addSignatureToSafe(data: {
+  safeId: string;
+  signerAddress: string;
+  signature: string;
+}) {
+  return prisma.safeSignature.create({
+    data: {
+      safeId: data.safeId,
+      signerAddress: data.signerAddress,
+      signature: data.signature,
+    },
+  });
+}
+
+export async function deploySafe(safeId: string, address: string) {
+  return prisma.safe.update({
+    where: { id: safeId },
+    data: {
+      address,
+      deployed: true,
+    },
+  });
+}

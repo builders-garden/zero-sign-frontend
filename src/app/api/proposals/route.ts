@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createProposal, getProposals } from "@/lib/prisma";
 import { createPublicClient, http } from "viem";
-import { sepolia } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { SAFE_ABI, ZK_OWNER_ABI } from "@/lib/constants";
 
 export async function GET() {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const publicClient = createPublicClient({
-      chain: sepolia,
+      chain: baseSepolia,
       transport: http(),
     });
 

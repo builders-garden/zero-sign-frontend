@@ -30,7 +30,7 @@ export default function AppHome() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Signer Privacy</h3>
             <p className="text-neutral-400 text-sm">
-              Choose your threshold but hide who your signers are and how many you have.
+              Choose your threshold but hide onchain who your signers are and how many you have.
             </p>
           </div>
 
@@ -40,7 +40,7 @@ export default function AppHome() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Transaction Privacy</h3>
             <p className="text-neutral-400 text-sm">
-              Hide who is signing specific transactions but be sure that the signers are allowed to.
+              Hide who is signing specific transactions but be publicly sure that the signers are allowed to.
             </p>
           </div>
 
@@ -65,48 +65,40 @@ export default function AppHome() {
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
               <div>
                 <h4 className="font-medium text-white">
-                  Social Attack Vectors
+                🧠 Social Engineering & Coercion
                 </h4>
                 <p className="text-sm text-neutral-400">
-                  Prevent targeting of known multisig signers through social
-                  engineering or coercion.
+                Shield signers from being personally targeted through phishing, impersonation, or coercive tactics by eliminating public signer visibility.
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
               <div>
                 <h4 className="font-medium text-white">
-                  Responsibility Concerns
+                ⚖️ Sensitive Transaction Attribution
                 </h4>
                 <p className="text-sm text-neutral-400">
-                  Sign transactions without public attribution, enabling support
-                  for sensitive causes.
+                Enable anonymous signing for high-impact or politically sensitive transactions (e.g., donations, whistleblower support, activist funding) without compromising operational security.
                 </p>
               </div>
             </div>
           </div>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
               <div>
-                <h4 className="font-medium text-white">Targeted Attacks</h4>
+                <h4 className="font-medium text-white"> 🕵️‍♂️ Deanonymization Risks</h4>
                 <p className="text-sm text-neutral-400">
-                  Reduce hack risks by obscuring multisig composition and signer
-                  identities.
+                Prevent adversaries from mapping onchain activity to specific individuals or organizations, reducing surveillance and correlation attacks across wallets or DAOs.
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 flex-shrink-0"></div>
               <div>
-                <h4 className="font-medium text-white">Public Scrutiny</h4>
+                <h4 className="font-medium text-white"> 🔍 Unwanted Public Attention</h4>
                 <p className="text-sm text-neutral-400">
-                  Maintain operational privacy while preserving the security
-                  guarantees of Safe multisig.
+                Maintain low profile for organizations or contributors handling large funds, avoiding headlines, scrutiny, or reputational exposure.
                 </p>
               </div>
             </div>
