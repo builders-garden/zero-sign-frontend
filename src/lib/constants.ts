@@ -2872,3 +2872,43 @@ export const SAFE_ABI = [
       ]
     }
   ] as const;
+
+  export const ZK_OWNER_FACTORY_ABI = [
+    {
+      "type": "function",
+      "name": "deploy",
+      "inputs": [
+        {
+          "name": "initData",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "zkOwnerAddress",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+    },
+    {
+      "type": "function",
+      "name": "threshold",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "threshold",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    }
+  ] as const;
+
+
+
+export const ZK_OWNER_FACTORY_ADDRESS = "0x0000000000000000000000000000000000000000";
+export const EMPTY_ADDRESS = "0x0000000000000000000000000000000000000000";
