@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Proposal {
+  id        Int     @id @default(autoincrement())
+  calldata  String
+  to        String
+  value     String
+  nonce     Int
+  threshold Int
+  proofs    Proof[]
+}
+
+model Proof {
+  id         Int      @id @default(autoincrement())
+  value      String
+  proposal   Proposal @relation(fields: [proposalId], references: [id])
+  proposalId Int
+}
