@@ -12,8 +12,8 @@ const navItems = [
 ];
 
 export function Sidebar({ connectedSafe }: { connectedSafe?: string }) {
-  const pathname =
-    typeof window !== "undefined" ? window.location.pathname : "";
+  const pathname = usePathname();
+
   return (
     <aside className="flex flex-col w-64 h-full bg-neutral-900 border-r border-neutral-800 py-6 px-4">
       <div className="flex items-center justify-between mb-4">
