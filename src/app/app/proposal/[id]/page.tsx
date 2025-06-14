@@ -6,11 +6,21 @@ import { useParams } from "next/navigation";
 import { encodeAbiParameters, keccak256, recoverPublicKey } from 'viem'
 import Link from "next/link";
 import { prisma } from "@/lib/client";
+import { Barretenberg, RawBuffer, UltraHonkBackend } from "@aztec/bb.js";
+import { CompiledCircuit, Noir } from "@noir-lang/noir_js";
+import ecdsa_multisig from "../../../../../public/proof/ecdsa_multisig.json";
 
 interface Proof {
   id: number;
   value: string;
   proposalId: number;
+}
+
+interface NoirCircuit {
+  bytecode: string;
+  abi: any;
+  noir_version: string;
+  hash: number;
 }
 
 interface Proposal {
@@ -23,6 +33,20 @@ interface Proposal {
   zkOwnerAddress: string;
   safeAddress: string;
   proofs: Proof[];
+}
+
+function proofToFields(bytes: Uint8Array | string): string[] {
+  const byteArray = typeof bytes === 'string' ? new Uint8Array(Buffer.from(bytes)) : bytes;
+  const fields = [];
+  for (let i = 0; i < byteArray.length; i += 32) {
+    const fieldBytes = new Uint8Array(32);
+    const end = Math.min(i + 32, byteArray.length);
+    for (let j = 0; j < end - i; j++) {
+      fieldBytes[j] = byteArray[i + j];
+    }
+    fields.push(Buffer.from(fieldBytes));
+  }
+  return fields.map((field) => "0x" + field.toString("hex"));
 }
 
 export default function ProposalDetailsPage() {
@@ -94,7 +118,7 @@ export default function ProposalDetailsPage() {
         {
           onSuccess: async (signature) => {
             setOperationSignature(signature);
-            const publicKey = await recoverPublicKey({hash: keccak256(messageToSign), signature: signature});
+            const publicKey = await recoverPublicKey({ hash: keccak256(messageToSign), signature: signature });
             console.log("publicKey", publicKey);
             setOperationSignaturePubX(publicKey.slice(4, 68));
             setOperationSignaturePubY(publicKey.slice(68));
@@ -147,7 +171,7 @@ export default function ProposalDetailsPage() {
         console.log("signatureZkAddressHash", signatureZkAddressHash);
         //remove prefix 0x from the signature
         setIdentitySignature(signature);
-        const publicKey = await recoverPublicKey({hash: (signatureZkAddressHash), signature: signature});
+        const publicKey = await recoverPublicKey({ hash: (signatureZkAddressHash), signature: signature });
         console.log("publicKey", publicKey);
         setIdentitySignaturePubX(publicKey.slice(4, 68));
         setIdentitySignaturePubY(publicKey.slice(68));
@@ -168,7 +192,7 @@ export default function ProposalDetailsPage() {
       },
     });
     const safeId = safe?.id;
-    
+
     //get safe signatures hashes from the safe
     const signaturesHashes = await prisma.safeSignature.findMany({
       where: {
@@ -177,7 +201,69 @@ export default function ProposalDetailsPage() {
     });
     //get the signatures hashes from the signaturesHashes array
     const signaturesHashesArray = signaturesHashes.map((signature) => signature.signatureHash);
-    
+    const noir = new Noir(ecdsa_multisig as NoirCircuit);
+    //@ts-ignore
+    const backend = new UltraHonkBackend((ecdsa_multisig as CompiledCircuit).bytecode, { threads: 4 }, { recursive: true });
+    const messageToSign = encodeAbiParameters([{ type: "address" }, { type: "uint256" }, { type: "bytes" }], [proposal.to as `0x${string}`, BigInt(proposal.value), proposal.calldata as `0x${string}`]);
+
+    const inputs = {
+      message_hash: keccak256(messageToSign),
+      operation_signature: operationSignature,
+      identity_verification_signature: identitySignature,
+      identity_pub_x: identitySignaturePubX,
+      identity_pub_y: identitySignaturePubY,
+      operation_pub_x: operationSignaturePubX,
+      operation_pub_y: operationSignaturePubY,
+      signers_identifiers: signaturesHashesArray,
+      threshold,
+      contract_address: proposal.zkOwnerAddress
+    };
+
+    console.log('Generating witness...');
+    //@ts-ignore
+    const { witness } = await noir.execute(inputs);
+    console.log('Witness generated:', witness);
+
+    console.log('Generating proof...');
+    //@ts-ignore
+    const rawProof = await backend.generateProof(witness);
+    console.log('Generated proof:', rawProof);
+    // Verify the proof
+    const isVerified = await backend.verifyProof(rawProof);
+    console.log("proof verification result:", isVerified);
+    if (isVerified) {
+      const proofBytes = `0x${Buffer.from(rawProof.proof).toString('hex')}`;
+      const publicInputsArray = rawProof.publicInputs.slice(0, 8);
+      // Generate recursive proof artifacts
+      const { proof: innerProofFields, publicInputs: innerPublicInputs } = await backend.generateProofForRecursiveAggregation(witness);
+
+      const publicInputElements = 8;
+      const proofAsFields = [...rawProof.publicInputs.slice(publicInputElements), ...proofToFields(rawProof.proof)];
+      console.log("proof field length", proofAsFields.length);
+
+      console.log("proofAsFields generated");
+
+      const innerCircuitVerificationKey = await backend.getVerificationKey();
+      if (!innerCircuitVerificationKey) {
+        throw new Error('Verification key could not be retrieved');
+      }
+
+      const barretenbergAPI = await Barretenberg.new({ threads: 1 });
+      const vkAsFields = (await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey))).map(field => field.toString());
+
+      if (!vkAsFields) {
+        throw new Error('vkAsFields is undefined');
+      }
+
+      const proofData = {
+        rawProof,
+        vkAsFields,
+        proofAsFields: innerProofFields,
+        inputsAsFields: innerPublicInputs
+      };
+    } else {
+      alert("Proof verification failed!");
+    }
   };
 
   const getProofStatus = () => {
@@ -260,18 +346,16 @@ export default function ProposalDetailsPage() {
       <div className="bg-neutral-800 rounded-xl p-8 text-neutral-300 space-y-6">
         {/* Status Banner */}
         <div
-          className={`p-4 rounded-lg ${
-            isComplete
-              ? "bg-green-900/20 border border-green-500/20"
-              : "bg-yellow-900/20 border border-yellow-500/20"
-          }`}
+          className={`p-4 rounded-lg ${isComplete
+            ? "bg-green-900/20 border border-green-500/20"
+            : "bg-yellow-900/20 border border-yellow-500/20"
+            }`}
         >
           <div className="flex justify-between items-center">
             <div>
               <div
-                className={`text-lg font-semibold ${
-                  isComplete ? "text-green-400" : "text-yellow-400"
-                }`}
+                className={`text-lg font-semibold ${isComplete ? "text-green-400" : "text-yellow-400"
+                  }`}
               >
                 {isComplete ? "✅ Ready to Execute" : "⏳ Pending Signatures"}
               </div>
@@ -283,9 +367,8 @@ export default function ProposalDetailsPage() {
             <div className="text-right">
               <div className="w-full bg-neutral-700 rounded-full h-2 mb-2">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    isComplete ? "bg-green-500" : "bg-yellow-500"
-                  }`}
+                  className={`h-2 rounded-full transition-all duration-300 ${isComplete ? "bg-green-500" : "bg-yellow-500"
+                    }`}
                   style={{
                     width: `${Math.min(
                       (committed / proposal.threshold) * 100,
