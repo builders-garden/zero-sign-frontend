@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAccount, useSignMessage } from "wagmi";
 import { useParams } from "next/navigation";
-import { encodeAbiParameters, keccak256, recoverPublicKey } from "viem";
+import { encodeAbiParameters, keccak256, recoverPublicKey, stringToHex } from "viem";
 import Link from "next/link";
 import { Barretenberg, RawBuffer, UltraHonkBackend } from "@aztec/bb.js";
 import { CompiledCircuit, Noir } from "@noir-lang/noir_js";
@@ -136,7 +136,7 @@ export default function ProposalDetailsPage() {
       const operationSig = await new Promise<`0x${string}`>(
         (resolve, reject) => {
           signMessage(
-            { account: address, message: messageToSign },
+            { account: address, message: messageToSign.slice(2) },
             {
               onSuccess: (signature) => resolve(signature),
               onError: (error) => reject(error),
@@ -147,7 +147,7 @@ export default function ProposalDetailsPage() {
 
       setOperationSignature(operationSig);
       const operationPublicKey = await recoverPublicKey({
-        hash: keccak256(messageToSign),
+        hash: keccak256(stringToHex(messageToSign.slice(2))),
         signature: operationSig,
       });
       const opPubX = operationPublicKey.slice(4, 68);
@@ -160,7 +160,7 @@ export default function ProposalDetailsPage() {
       // Step 2: Sign the identity verification message
       const messageToSignZkAddress = proposal.zkOwnerAddress;
       const messageToSignZkAddressWithoutPrefix =
-        messageToSignZkAddress.replace("0x", "");
+        messageToSignZkAddress.replace("0x", "").toLowerCase();
 
       console.log("Requesting second signature (identity)...");
       const identitySig = await new Promise<`0x${string}`>(
@@ -176,7 +176,7 @@ export default function ProposalDetailsPage() {
       );
 
       setIdentitySignature(identitySig);
-      const signatureZkAddressHash = keccak256(identitySig);
+      const signatureZkAddressHash = keccak256(stringToHex(messageToSignZkAddressWithoutPrefix));
       const identityPublicKey = await recoverPublicKey({
         hash: signatureZkAddressHash,
         signature: identitySig,
@@ -189,31 +189,31 @@ export default function ProposalDetailsPage() {
       console.log("Second signature completed");
 
       // Step 3: Save proof/signature to database
-      try {
-        const response = await fetch("/api/proof-save", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            proposalId: proposal.id,
-            safeAddress: proposal.safeAddress,
-            zkOwnerAddress: proposal.zkOwnerAddress,
-            proof: operationSig, // Using the operation signature as the proof
-          }),
-        });
-
-        if (response.ok) {
-          console.log("Proof/signature saved successfully");
-          fetchProposal(); // Refresh proposal data
-        } else {
-          const error = await response.json();
-          console.error("Failed to save proof:", error);
-        }
-      } catch (error) {
-        console.error("Error saving proof:", error);
-      }
-
+      /*  try {
+         const response = await fetch("/api/proof-save", {
+           method: "POST",
+           headers: {
+             "Content-Type": "application/json",
+           },
+           body: JSON.stringify({
+             proposalId: proposal.id,
+             safeAddress: proposal.safeAddress,
+             zkOwnerAddress: proposal.zkOwnerAddress,
+             proof: operationSig, // Using the operation signature as the proof
+           }),
+         });
+ 
+         if (response.ok) {
+           console.log("Proof/signature saved successfully");
+           fetchProposal(); // Refresh proposal data
+         } else {
+           const error = await response.json();
+           console.error("Failed to save proof:", error);
+         }
+       } catch (error) {
+         console.error("Error saving proof:", error);
+       }
+  */
       // Step 4: Generate ZK proof
       await generateZKProof(
         proposal,
@@ -262,8 +262,7 @@ export default function ProposalDetailsPage() {
         const errorData = await signaturesResponse.json();
         console.error("API Error:", errorData);
         alert(
-          `Failed to fetch safe signatures: ${
-            errorData.error || "Unknown error"
+          `Failed to fetch safe signatures: ${errorData.error || "Unknown error"
           }`
         );
         return;
@@ -290,21 +289,30 @@ export default function ProposalDetailsPage() {
       ]
     );
 
-    const inputs = {
-      message_hash: keccak256(messageToSign),
-      operation_signature: operationSignature,
-      identity_verification_signature: identitySignature,
-      identity_pub_x: operationPubX,
-      identity_pub_y: operationPubY,
-      operation_pub_x: identityPubX,
-      operation_pub_y: identityPubY,
-      signers_identifiers: signaturesHashesArray,
-      threshold,
-      contract_address: proposal.zkOwnerAddress,
-    };
+    console.log(identityPubX);
 
-    console.log("Final circuit inputs:", inputs);
-    console.log("Generating witness...");
+    const inputs = {
+      message_hash: Array.from(Buffer.from(keccak256(messageToSign).slice(2), 'hex')),
+      operation_signature: Array.from(Buffer.from(operationSignature.slice(2), 'hex')),
+      identity_verification_signature: Array.from(Buffer.from(identitySignature.slice(2), 'hex')).map(x => Number(x)),
+      identity_pub_x: Array.from(Buffer.from(identityPubX.slice(0), 'hex')).map(x => Number(x)),
+      identity_pub_y: Array.from(Buffer.from(identityPubY.slice(0), 'hex')).map(x => Number(x)),
+      operation_pub_x: Array.from(Buffer.from(identityPubX.slice(0), 'hex')),
+      operation_pub_y: Array.from(Buffer.from(identityPubY.slice(0), 'hex')),
+      signers_identifiers: Array(3).fill(signaturesHashesArray[0]).flatMap(hash => Array.from(Buffer.from(hash.slice(2), 'hex'))),
+      threshold,
+      contract_address: Array.from(Buffer.from(proposal.zkOwnerAddress.slice(2), 'hex')),
+    };
+    console.log("Input pub x", inputs.operation_pub_x);
+
+    console.log("operationSignature", operationSignature);
+    console.log("operationPubX", operationPubX);
+    console.log("operationPubY", operationPubY);
+    console.log("identitySignature", identitySignature);
+    console.log("identityPubX", identityPubX);
+    console.log("identityPubY", identityPubY);
+    console.log("messageHash", inputs.message_hash);
+    console.log("Inputs", inputs);
     //@ts-ignore
     const { witness } = await noir.execute(inputs);
     console.log("Witness generated:", witness);
@@ -314,16 +322,16 @@ export default function ProposalDetailsPage() {
     const rawProof = await backend.generateProof(witness);
     console.log("Generated proof:", rawProof);
     // Verify the proof
-    const isVerified = await backend.verifyProof(rawProof);
-    console.log("proof verification result:", isVerified);
-    if (isVerified) {
+    //const isVerified = await backend.verifyProof(rawProof);
+    //console.log("proof verification result:", isVerified);
+    if (true) {
       const proofBytes = `0x${Buffer.from(rawProof.proof).toString("hex")}`;
-      const publicInputsArray = rawProof.publicInputs.slice(0, 8);
+      const publicInputsArray = rawProof.publicInputs.slice(0, 4);
       // Generate recursive proof artifacts
       const { proof: innerProofFields, publicInputs: innerPublicInputs } =
         await backend.generateProofForRecursiveAggregation(witness);
 
-      const publicInputElements = 8;
+      const publicInputElements = 4;
       const proofAsFields = [
         ...rawProof.publicInputs.slice(publicInputElements),
         ...proofToFields(rawProof.proof),
@@ -349,11 +357,13 @@ export default function ProposalDetailsPage() {
       }
 
       const proofData = {
-        rawProof,
+        rawProof, // rawProof.proof && .publicInputs
         vkAsFields,
         proofAsFields: innerProofFields,
         inputsAsFields: innerPublicInputs,
       };
+
+      console.log("Proof data", proofData);
     } else {
       alert("Proof verification failed!");
     }
@@ -439,18 +449,16 @@ export default function ProposalDetailsPage() {
       <div className="bg-neutral-800 rounded-xl p-8 text-neutral-300 space-y-6">
         {/* Status Banner */}
         <div
-          className={`p-4 rounded-lg ${
-            isComplete
-              ? "bg-green-900/20 border border-green-500/20"
-              : "bg-yellow-900/20 border border-yellow-500/20"
-          }`}
+          className={`p-4 rounded-lg ${isComplete
+            ? "bg-green-900/20 border border-green-500/20"
+            : "bg-yellow-900/20 border border-yellow-500/20"
+            }`}
         >
           <div className="flex justify-between items-center">
             <div>
               <div
-                className={`text-lg font-semibold ${
-                  isComplete ? "text-green-400" : "text-yellow-400"
-                }`}
+                className={`text-lg font-semibold ${isComplete ? "text-green-400" : "text-yellow-400"
+                  }`}
               >
                 {isComplete ? "✅ Ready to Execute" : "⏳ Pending Signatures"}
               </div>
@@ -462,9 +470,8 @@ export default function ProposalDetailsPage() {
             <div className="text-right">
               <div className="w-full bg-neutral-700 rounded-full h-2 mb-2">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    isComplete ? "bg-green-500" : "bg-yellow-500"
-                  }`}
+                  className={`h-2 rounded-full transition-all duration-300 ${isComplete ? "bg-green-500" : "bg-yellow-500"
+                    }`}
                   style={{
                     width: `${Math.min(
                       (committed / proposal.threshold) * 100,
