@@ -21,6 +21,7 @@ export async function GET(
         address: safeAddress,
       },
     });
+    console.log("safe", safe);
 
     // If not found by address, try by ID
     if (!safe) {
@@ -49,11 +50,28 @@ export async function GET(
         createdAt: true,
       },
     });
+    console.log("signaturesHashes", signaturesHashes);
 
     // Extract just the signature hashes for the ZK proof
     const signatureHashes = signaturesHashes.map(
       (signature) => signature.signatureHash
     );
+
+    // TEMPORARY: If no signatures exist, return mock data for testing
+    if (signatureHashes.length === 0) {
+      const mockSignatureHashes = [
+        "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321",
+      ];
+      console.log("Using mock signature hashes for testing");
+      return NextResponse.json({
+        success: true,
+        signatureHashes: mockSignatureHashes,
+        signatures: [],
+        count: mockSignatureHashes.length,
+        mock: true, // Indicate this is mock data
+      });
+    }
 
     return NextResponse.json({
       success: true,

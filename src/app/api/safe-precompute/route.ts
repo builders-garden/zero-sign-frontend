@@ -26,9 +26,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!threshold || threshold < 1) {
+    // Convert threshold to number and validate
+    const thresholdNum = parseInt(threshold);
+    if (!threshold || isNaN(thresholdNum) || thresholdNum < 1) {
       return NextResponse.json(
-        { error: "Threshold must be at least 1" },
+        { error: "Threshold must be a valid number at least 1" },
         { status: 400 }
       );
     }
@@ -54,18 +56,20 @@ export async function POST(request: NextRequest) {
       args: [signerAddress, nonce],
     });
     console.log("zkOwnerAddress", zkOwnerAddress);
+    console.log("threshold", thresholdNum);
+    console.log("signerAddress", signerAddress);
 
     // Create Safe record in database
     const safe = await createSafe({
       zkOwnerAddress,
       signers: [signerAddress],
-      threshold,
+      threshold: thresholdNum,
     });
 
     return NextResponse.json({
       safeId: safe.id,
       zkOwnerAddress,
-      threshold,
+      threshold: thresholdNum,
     });
   } catch (error) {
     console.error("Error precomputing safe:", error);
