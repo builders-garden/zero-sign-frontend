@@ -247,8 +247,7 @@ export default function ProposalDetailsPage() {
         const errorData = await signaturesResponse.json();
         console.error("API Error:", errorData);
         alert(
-          `Failed to fetch safe signatures: ${
-            errorData.error || "Unknown error"
+          `Failed to fetch safe signatures: ${errorData.error || "Unknown error"
           }`
         );
         return;
@@ -258,12 +257,11 @@ export default function ProposalDetailsPage() {
       alert("Error fetching safe signatures for proof generation");
       return;
     }
-    console.log("porcodio");
+
     const noir = new Noir(ecdsa_multisig as NoirCircuit);
     //@ts-ignore
     const backend = new UltraHonkBackend(
       (ecdsa_multisig as CompiledCircuit).bytecode,
-      { threads: 4 },
       { recursive: true }
     );
     const messageToSign = encodeAbiParameters(
@@ -475,14 +473,13 @@ export default function ProposalDetailsPage() {
 
       const backend = new UltraHonkBackend(
         (ecdsa_multisig_recursive as CompiledCircuit).bytecode,
-        { threads: 4 },
         { recursive: true }
       );
 
-      const { witness } = await noir.execute(recursiveCircuitInputs);
+      const { witness } = await noir.execute(recursiveCircuitInputs, { keccak: true });
       console.log("Witness generated:", witness);
 
-      const recursiveProof = await backend.generateProof(witness);
+      const recursiveProof = await backend.generateProof(witness, { keccak: true });
       console.log("Recursive proof generated:", recursiveProof);
 
       alert(`Recursive ZK Proof Generated Successfully! 🎉
@@ -565,18 +562,16 @@ The recursive proof aggregates all individual signatures into a single proof for
       <div className="bg-neutral-800 rounded-xl p-8 text-neutral-300 space-y-6">
         {/* Status Banner */}
         <div
-          className={`p-4 rounded-lg ${
-            isComplete
-              ? "bg-green-900/20 border border-green-500/20"
-              : "bg-yellow-900/20 border border-yellow-500/20"
-          }`}
+          className={`p-4 rounded-lg ${isComplete
+            ? "bg-green-900/20 border border-green-500/20"
+            : "bg-yellow-900/20 border border-yellow-500/20"
+            }`}
         >
           <div className="flex justify-between items-center">
             <div>
               <div
-                className={`text-lg font-semibold ${
-                  isComplete ? "text-green-400" : "text-yellow-400"
-                }`}
+                className={`text-lg font-semibold ${isComplete ? "text-green-400" : "text-yellow-400"
+                  }`}
               >
                 {isComplete ? "✅ Ready to Execute" : "⏳ Pending Signatures"}
               </div>
@@ -588,9 +583,8 @@ The recursive proof aggregates all individual signatures into a single proof for
             <div className="text-right">
               <div className="w-full bg-neutral-700 rounded-full h-2 mb-2">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    isComplete ? "bg-green-500" : "bg-yellow-500"
-                  }`}
+                  className={`h-2 rounded-full transition-all duration-300 ${isComplete ? "bg-green-500" : "bg-yellow-500"
+                    }`}
                   style={{
                     width: `${Math.min(
                       (committed / proposal.threshold) * 100,
@@ -723,8 +717,8 @@ The recursive proof aggregates all individual signatures into a single proof for
                   <div className="text-white font-mono text-xs break-all">
                     {proof.value.length > 100
                       ? `${proof.value.slice(0, 50)}...${proof.value.slice(
-                          -50
-                        )}`
+                        -50
+                      )}`
                       : proof.value}
                   </div>
                   <div className="text-xs text-neutral-500 mt-1 flex justify-between items-center">
