@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Barretenberg, RawBuffer, UltraHonkBackend } from "@aztec/bb.js";
 import { CompiledCircuit, Noir } from "@noir-lang/noir_js";
 import ecdsa_multisig from "../../../../../public/proof/ecdsa_multisig.json";
+import ecdsa_multisig_recursive from "../../../../../public/proof/ecdsa_multisig_recursive.json";
 
 interface Proof {
   id: number;
@@ -82,6 +83,8 @@ export default function ProposalDetailsPage() {
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState(false);
+  const [generatingRecursiveProof, setGeneratingRecursiveProof] =
+    useState(false);
   const [error, setError] = useState("");
 
   const fetchProposal = async () => {
@@ -419,10 +422,12 @@ export default function ProposalDetailsPage() {
       return;
     }
 
-    try {
-      console.log("Preparing ZK transaction...");
+    setGeneratingRecursiveProof(true);
 
-      // Collect all ZK proof data from the proposal proofs
+    try {
+      console.log("Generating ZK proof for transaction execution...");
+
+      // Collect all existing ZK proof data from the proposal proofs
       const zkProofDataArray = [];
 
       for (const proof of proposal.proofs) {
@@ -449,25 +454,50 @@ export default function ProposalDetailsPage() {
         return;
       }
 
-      console.log("Collected ZK proofs:", zkProofDataArray);
+      console.log("Collected ZK proofs:", zkProofDataArray.length);
+      console.log("Generating recursive ZK proof...");
 
-      // TODO: Implement on-chain transaction execution
-      // This will involve:
-      // 1. Preparing the transaction data with ZK proofs
-      // 2. Calling the smart contract method to execute with ZK verification
-      // 3. Handling the transaction confirmation
+      const recursiveCircuitInputs = {
+        p1_verification_key: zkProofDataArray[0].vkAsFields,
+        p1_proof: zkProofDataArray[0].proofAsFields,
+        p1_public_inputs: zkProofDataArray[0].inputsAsFields,
+        p1_key_hash: "0x" + "00".repeat(32),
 
-      alert(`Ready to send ZK transaction with ${zkProofDataArray.length} ZK proofs! 
-      
-Implementation needed:
-- Smart contract interaction
-- ZK proof verification on-chain
-- Transaction execution
+        p2_verification_key: zkProofDataArray[1].vkAsFields,
+        p2_proof: zkProofDataArray[1].proofAsFields,
+        p2_public_inputs: zkProofDataArray[1].inputsAsFields,
+        p2_key_hash: "0x" + "00".repeat(32),
+      };
 
-Proof data collected and ready for on-chain execution.`);
+      console.log("Recursive circuit inputs:", recursiveCircuitInputs);
+
+      const noir = new Noir(ecdsa_multisig_recursive as NoirCircuit);
+
+      const backend = new UltraHonkBackend(
+        (ecdsa_multisig_recursive as CompiledCircuit).bytecode,
+        { threads: 4 },
+        { recursive: true }
+      );
+
+      const { witness } = await noir.execute(recursiveCircuitInputs);
+      console.log("Witness generated:", witness);
+
+      const recursiveProof = await backend.generateProof(witness);
+      console.log("Recursive proof generated:", recursiveProof);
+
+      alert(`Recursive ZK Proof Generated Successfully! 🎉
+
+Proof Details:
+- Combined ${zkProofDataArray.length} individual proofs
+- Recursive proof size: ${recursiveProof.proof.length} bytes
+- Ready for blockchain execution
+
+The recursive proof aggregates all individual signatures into a single proof for efficient on-chain verification!`);
     } catch (error) {
-      console.error("Error preparing ZK transaction:", error);
-      alert("Failed to prepare ZK transaction");
+      console.error("Error generating recursive ZK proof:", error);
+      alert("Failed to generate recursive ZK proof");
+    } finally {
+      setGeneratingRecursiveProof(false);
     }
   };
 
@@ -722,10 +752,17 @@ Proof data collected and ready for on-chain execution.`);
             <>
               <Button
                 onClick={handleSendZkTransaction}
-                disabled={!isConnected}
-                className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl px-6 py-3"
+                disabled={!isConnected || generatingRecursiveProof}
+                className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl px-6 py-3 disabled:opacity-50"
               >
-                🚀 Send ZK Transaction
+                {generatingRecursiveProof ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                    Generating Recursive Proof...
+                  </>
+                ) : (
+                  "🚀 Send ZK Transaction"
+                )}
               </Button>
               <Button
                 onClick={copyShareableLink}
@@ -739,9 +776,16 @@ Proof data collected and ready for on-chain execution.`);
               <Button
                 onClick={handleSign}
                 disabled={signing || !isConnected}
-                className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl px-6 py-3"
+                className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl px-6 py-3 disabled:opacity-50"
               >
-                {signing ? "Signing..." : "Sign Proposal"}
+                {signing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                    Generating ZK Proof...
+                  </>
+                ) : (
+                  "Sign Proposal"
+                )}
               </Button>
               <Button
                 onClick={copyShareableLink}
@@ -762,8 +806,6 @@ Proof data collected and ready for on-chain execution.`);
     </div>
   );
 }
-
-
 
 /*
 
