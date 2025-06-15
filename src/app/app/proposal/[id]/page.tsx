@@ -258,11 +258,12 @@ export default function ProposalDetailsPage() {
       alert("Error fetching safe signatures for proof generation");
       return;
     }
-
+    console.log("porcodio");
     const noir = new Noir(ecdsa_multisig as NoirCircuit);
     //@ts-ignore
     const backend = new UltraHonkBackend(
       (ecdsa_multisig as CompiledCircuit).bytecode,
+      { threads: 4 },
       { recursive: true }
     );
     const messageToSign = encodeAbiParameters(
@@ -335,6 +336,7 @@ export default function ProposalDetailsPage() {
         ...rawProof.publicInputs.slice(publicInputElements),
         ...proofToFields(rawProof.proof),
       ];
+
       console.log("proof field length", proofAsFields.length);
 
       console.log("proofAsFields generated");
@@ -358,7 +360,7 @@ export default function ProposalDetailsPage() {
       const proofData = {
         rawProof, // rawProof.proof && .publicInputs
         vkAsFields,
-        proofAsFields: innerProofFields,
+        proofAsFields: proofAsFields,
         inputsAsFields: innerPublicInputs,
       };
 
@@ -474,13 +476,14 @@ export default function ProposalDetailsPage() {
 
       const backend = new UltraHonkBackend(
         (ecdsa_multisig_recursive as CompiledCircuit).bytecode,
+        { threads: 4 },
         { recursive: true }
       );
 
-      const { witness } = await noir.execute(recursiveCircuitInputs, { keccak: true });
+      const { witness } = await noir.execute(recursiveCircuitInputs);
       console.log("Witness generated:", witness);
 
-      const recursiveProof = await backend.generateProof(witness, { keccak: true });
+      const recursiveProof = await backend.generateProof(witness);
       console.log("Recursive proof generated:", recursiveProof);
 
       const rawRecursiveProof = recursiveProof.proof;
