@@ -6,7 +6,10 @@ import { SAFE_ABI, ZK_OWNER_ABI } from "@/lib/constants";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { safeAddress } = body;
+    const { safeAddress, zkOwnerAddress } = body;
+
+    console.log("safeAddress", safeAddress);
+    console.log("zkOwnerAddress", zkOwnerAddress);
 
     // Validate required fields
     if (!safeAddress) {
@@ -29,24 +32,14 @@ export async function POST(request: NextRequest) {
         functionName: "nonce",
       });
 
-      // Fetch zkOwnerAddress from Safe contract
-      const zkOwnerAddress = await publicClient.readContract({
-        address: safeAddress,
-        abi: SAFE_ABI,
-        functionName: "owner",
-      });
+      console.log("nonce", nonce);
 
-      // Fetch threshold from ZK Owner contract
-      const threshold = await publicClient.readContract({
-        address: zkOwnerAddress,
-        abi: ZK_OWNER_ABI,
-        functionName: "getThreshold",
-      });
 
+    
       return NextResponse.json({
         success: true,
         nonce: Number(nonce),
-        threshold: Number(threshold),
+        threshold: Number(2),
         zkOwnerAddress: zkOwnerAddress,
         safeAddress: safeAddress,
       });

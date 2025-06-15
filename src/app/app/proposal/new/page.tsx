@@ -27,6 +27,7 @@ export default function CreateProposalPage() {
     setFetchError("");
 
     try {
+      console.log("zkOwnerAddressporcdop", zkOwnerAddress);
       // Create a test API call to fetch the Safe info
       const response = await fetch("/api/safe-info", {
         method: "POST",
@@ -35,6 +36,7 @@ export default function CreateProposalPage() {
         },
         body: JSON.stringify({
           safeAddress: zkSafeAddress,
+          zkOwnerAddress: zkOwnerAddress,
         }),
       });
 

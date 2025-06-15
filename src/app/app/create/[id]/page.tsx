@@ -1,8 +1,20 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useAccount, useSignMessage } from "wagmi";
+import {
+  useAccount,
+  useSignMessage,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  useWatchContractEvent,
+} from "wagmi";
 import { useParams } from "next/navigation";
+import {
+  ZK_OWNER_FACTORY_ABI,
+  ZK_OWNER_FACTORY_ADDRESS,
+} from "@/lib/constants";
+import { baseSepolia } from "viem/chains";
+import { config } from "@/lib/config";
 
 interface SafeData {
   safeId: string;
@@ -25,6 +37,55 @@ export default function SafeSigningPage() {
   const safeId = params.id as string;
   const { address, isConnected } = useAccount();
   const { signMessage } = useSignMessage();
+  const {
+    writeContract,
+    data: hash,
+    error: writeError,
+    isPending,
+  } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash,
+    });
+
+  // Watch for Safe deployment events
+  useWatchContractEvent({
+    address: ZK_OWNER_FACTORY_ADDRESS,
+    abi: ZK_OWNER_FACTORY_ABI,
+    eventName: "ContractDeployed",
+    config: config,
+    enabled: true,
+    onLogs(logs) {
+      console.log("🎉 Deployment event detected:", logs);
+      if (logs.length > 0 && safeData) {
+        const log = logs[0];
+        console.log("📋 Full log object:", log);
+        console.log("📋 Log args:", log.args);
+
+        // Extract addresses from the event args
+        const safeProxyAddress = log.args?.safeProxyAddress as `0x${string}`;
+        const deployedAddress = log.args?.deployedAddress as `0x${string}`;
+        const salt = log.args?.salt as `0x${string}`;
+
+        console.log("📍 Event data extracted:", {
+          safeProxyAddress,
+          deployedAddress,
+          salt,
+        });
+        console.log("📍 Transaction hash:", log.transactionHash);
+
+        // Update database with the deployment data
+        updateDeployedSafeWithEventData(
+          safeProxyAddress,
+          deployedAddress,
+          log.transactionHash
+        );
+      }
+    },
+    onError(error) {
+      console.error("❌ Event watching error:", error);
+    },
+  });
 
   const [safeData, setSafeData] = useState<SafeData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,7 +134,7 @@ export default function SafeSigningPage() {
     try {
       const messageWithoutPrefix = safeData.zkOwnerAddress.replace("0x", "");
       const message = `${messageWithoutPrefix}`;
-      
+
       signMessage(
         { account: address, message },
         {
@@ -115,13 +176,19 @@ export default function SafeSigningPage() {
   };
 
   const handleDeploy = async () => {
-    if (!safeData) return;
+    if (!safeData || !isConnected) {
+      alert("Please connect your wallet first");
+      return;
+    }
 
     setDeploying(true);
-    console.log("safeData", safeData);
+    console.log("🚀 Starting deployment process...");
+    console.log("📋 Safe data:", safeData);
 
     try {
-      const response = await fetch("/api/safe-create", {
+      // Fetch deployment data from the server
+      console.log("📡 Fetching deployment data...");
+      const response = await fetch("/api/safe-deploy-data", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -131,17 +198,134 @@ export default function SafeSigningPage() {
         }),
       });
 
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || "Failed to get deployment data");
+        return;
+      }
+
+      const { threshold, signaturesHashes } = await response.json();
+      console.log("📊 Deployment data received:", {
+        threshold,
+        signaturesHashes,
+      });
+
+      // Deploy using user's wallet
+      console.log("💰 Calling writeContract...");
+      writeContract({
+        address: ZK_OWNER_FACTORY_ADDRESS,
+        abi: ZK_OWNER_FACTORY_ABI,
+        functionName: "deploy",
+        args: [BigInt(threshold), signaturesHashes],
+      });
+      console.log("✅ writeContract called successfully");
+    } catch (error) {
+      console.error("❌ Error preparing deployment:", error);
+      alert("Failed to prepare deployment");
+      setDeploying(false);
+    }
+  };
+
+  // Handle deployment completion and errors
+  useEffect(() => {
+    if (isConfirmed && hash && safeData) {
+      console.log("🔄 Transaction confirmed, checking for events...");
+      // Give event watcher a moment to catch the event
+      setTimeout(() => {
+        if (deploying) {
+          console.log("⚠️ Event not caught, falling back to receipt parsing");
+          updateDeployedSafeFromReceipt();
+        }
+      }, 3000); // Wait 3 seconds for event
+    }
+
+    if (writeError) {
+      console.error("❌ Deployment error:", writeError);
+      alert("Failed to deploy Safe: " + writeError.message);
+      setDeploying(false);
+    }
+  }, [isConfirmed, writeError, hash, safeData, deploying]);
+
+  const updateDeployedSafeFromReceipt = async () => {
+    if (!hash || !safeData) return;
+
+    console.log("📄 Falling back to receipt parsing for hash:", hash);
+
+    try {
+      const response = await fetch("/api/safe-update-address", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          safeId: safeData.safeId,
+          transactionHash: hash,
+        }),
+      });
+
       if (response.ok) {
         const result = await response.json();
-        alert(`Safe deployed successfully! Address: ${result.safeAddress}`);
+        alert(`Safe deployed successfully! 
+        
+Safe Address: ${result.safeAddress}
+ZK Owner Address: ${result.zkOwnerAddress}`);
         fetchSafeData(); // Refresh data
       } else {
         const error = await response.json();
-        alert(error.error || "Failed to deploy Safe");
+        alert(error.error || "Failed to update Safe address");
       }
     } catch (error) {
-      console.error("Error deploying safe:", error);
-      alert("Failed to deploy Safe");
+      console.error("Error updating safe address from receipt:", error);
+      alert("Failed to update Safe address");
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  const updateDeployedSafeWithEventData = async (
+    safeProxyAddress: `0x${string}`,
+    deployedAddress: `0x${string}`,
+    transactionHash: `0x${string}`
+  ) => {
+    if (!safeData) return;
+
+    console.log("🚀 Event caught! Updating database with event data...");
+    console.log("📊 Event data:", {
+      safeProxyAddress,
+      deployedAddress,
+      transactionHash,
+    });
+
+    try {
+      const response = await fetch("/api/safe-update-address-event", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          safeId: safeData.safeId,
+          safeProxyAddress,
+          deployedAddress,
+          transactionHash,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("✅ Database updated successfully:", result);
+        alert(`Safe deployed successfully! 
+        
+Safe Address: ${result.safeAddress}
+ZK Owner Address: ${result.zkOwnerAddress}`);
+        fetchSafeData(); // Refresh data
+      } else {
+        const error = await response.json();
+        console.error("❌ Database update failed:", error);
+        alert(error.error || "Failed to update Safe address");
+      }
+    } catch (error) {
+      console.error("❌ Error updating safe address:", error);
+      alert("Failed to update Safe address");
     } finally {
       setDeploying(false);
     }
@@ -274,10 +458,27 @@ export default function SafeSigningPage() {
               {safeData.isReady && (
                 <Button
                   onClick={handleDeploy}
-                  disabled={deploying}
-                  className="w-full bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl px-6 py-3"
+                  disabled={deploying || isPending || isConfirming}
+                  className="w-full bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl px-6 py-3 disabled:opacity-50"
                 >
-                  {deploying ? "Deploying..." : "Deploy Safe"}
+                  {isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2 inline-block"></div>
+                      Confirm in Wallet...
+                    </>
+                  ) : isConfirming ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2 inline-block"></div>
+                      Deploying Safe...
+                    </>
+                  ) : deploying ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2 inline-block"></div>
+                      Preparing...
+                    </>
+                  ) : (
+                    "Deploy Safe"
+                  )}
                 </Button>
               )}
             </>

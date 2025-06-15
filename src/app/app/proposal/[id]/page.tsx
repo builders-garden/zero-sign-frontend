@@ -9,6 +9,7 @@ import {
   recoverPublicKey,
   stringToHex,
 } from "viem";
+
 import Link from "next/link";
 import { Barretenberg, RawBuffer, UltraHonkBackend } from "@aztec/bb.js";
 import { CompiledCircuit, Noir } from "@noir-lang/noir_js";
@@ -481,6 +482,34 @@ export default function ProposalDetailsPage() {
 
       const recursiveProof = await backend.generateProof(witness, { keccak: true });
       console.log("Recursive proof generated:", recursiveProof);
+
+      const rawRecursiveProof = recursiveProof.proof;
+      const recursiveProofPublicInputs = recursiveProof.publicInputs;
+      const recursiveProofPublicInputsSliced = recursiveProofPublicInputs.slice(
+        0,
+        4
+      );
+
+      const recursiveProofEncoded = encodeAbiParameters(
+        [{ type: "bytes" }, { type: "bytes32[]" }],
+        [
+          `0x${Buffer.from(rawRecursiveProof).toString("hex")}`,
+          recursiveProofPublicInputsSliced as `0x${string}`[],
+        ]
+      );
+
+      //call the safe-tx api
+      const response = await fetch("/api/safe-tx", {
+        method: "POST",
+        body: JSON.stringify({
+          safeAddress: proposal.safeAddress,
+          zkOwnerAddress: proposal.zkOwnerAddress,
+          to: proposal.to,
+          data: proposal.calldata,
+          value: proposal.value,
+          recursiveProof: recursiveProofEncoded,
+        }),
+      });
 
       alert(`Recursive ZK Proof Generated Successfully! 🎉
 
