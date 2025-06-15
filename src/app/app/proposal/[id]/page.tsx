@@ -480,10 +480,10 @@ export default function ProposalDetailsPage() {
         { recursive: true }
       );
 
-      const { witness } = await noir.execute(recursiveCircuitInputs);
+      const { witness } = await noir.execute(recursiveCircuitInputs, { keccak: true });
       console.log("Witness generated:", witness);
 
-      const recursiveProof = await backend.generateProof(witness);
+      const recursiveProof = await backend.generateProof(witness, { keccak: true });
       console.log("Recursive proof generated:", recursiveProof);
 
       const rawRecursiveProof = recursiveProof.proof;
