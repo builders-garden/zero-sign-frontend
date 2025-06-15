@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // prepare the signature data for safe - like https://docs.safe.global/advanced/smart-account-signatures#contract-signature-eip-1271
+  // prepare the signature data for safe 
   console.log("toBytes(proof).length", toBytes(proof).length);
   console.log("toBytes(proof).length/2", toBytes(proof).length / 2);
   console.log("proof.length/2", proof.length / 2);

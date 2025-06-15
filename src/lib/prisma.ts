@@ -59,14 +59,42 @@ export async function getProposalProofStatus(proposalId: number) {
 // Add a proof to an existing proposal
 export async function addProofToProposal(
   proposalId: number,
-  proofValue: string
+  proofValue: string,
+  zkProofData?: any
 ) {
   return prisma.proof.create({
     data: {
       value: proofValue,
       proposalId,
+      zkProofData: zkProofData ? JSON.stringify(zkProofData) : null,
     },
   });
+}
+
+// Update proof with ZK proof data
+export async function updateProofWithZkData(proofId: number, zkProofData: any) {
+  return prisma.proof.update({
+    where: { id: proofId },
+    data: {
+      zkProofData: JSON.stringify(zkProofData),
+    },
+  });
+}
+
+// Get proof with ZK data by ID
+export async function getProofWithZkData(proofId: number) {
+  const proof = await prisma.proof.findUnique({
+    where: { id: proofId },
+    include: { proposal: true },
+  });
+
+  if (proof && proof.zkProofData) {
+    return {
+      ...proof,
+      zkProofData: JSON.parse(proof.zkProofData),
+    };
+  }
+  return proof;
 }
 
 // Get proposals that are ready to execute (have enough proofs)

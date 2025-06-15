@@ -3,7 +3,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAccount, useSignMessage } from "wagmi";
 import { useParams } from "next/navigation";
-import { encodeAbiParameters, keccak256, recoverPublicKey, stringToHex } from "viem";
+import {
+  encodeAbiParameters,
+  keccak256,
+  recoverPublicKey,
+  stringToHex,
+} from "viem";
 import Link from "next/link";
 import { Barretenberg, RawBuffer, UltraHonkBackend } from "@aztec/bb.js";
 import { CompiledCircuit, Noir } from "@noir-lang/noir_js";
@@ -159,8 +164,9 @@ export default function ProposalDetailsPage() {
 
       // Step 2: Sign the identity verification message
       const messageToSignZkAddress = proposal.zkOwnerAddress;
-      const messageToSignZkAddressWithoutPrefix =
-        messageToSignZkAddress.replace("0x", "").toLowerCase();
+      const messageToSignZkAddressWithoutPrefix = messageToSignZkAddress
+        .replace("0x", "")
+        .toLowerCase();
 
       console.log("Requesting second signature (identity)...");
       const identitySig = await new Promise<`0x${string}`>(
@@ -176,7 +182,9 @@ export default function ProposalDetailsPage() {
       );
 
       setIdentitySignature(identitySig);
-      const signatureZkAddressHash = keccak256(stringToHex(messageToSignZkAddressWithoutPrefix));
+      const signatureZkAddressHash = keccak256(
+        stringToHex(messageToSignZkAddressWithoutPrefix)
+      );
       const identityPublicKey = await recoverPublicKey({
         hash: signatureZkAddressHash,
         signature: identitySig,
@@ -188,33 +196,7 @@ export default function ProposalDetailsPage() {
 
       console.log("Second signature completed");
 
-      // Step 3: Save proof/signature to database
-      /*  try {
-         const response = await fetch("/api/proof-save", {
-           method: "POST",
-           headers: {
-             "Content-Type": "application/json",
-           },
-           body: JSON.stringify({
-             proposalId: proposal.id,
-             safeAddress: proposal.safeAddress,
-             zkOwnerAddress: proposal.zkOwnerAddress,
-             proof: operationSig, // Using the operation signature as the proof
-           }),
-         });
- 
-         if (response.ok) {
-           console.log("Proof/signature saved successfully");
-           fetchProposal(); // Refresh proposal data
-         } else {
-           const error = await response.json();
-           console.error("Failed to save proof:", error);
-         }
-       } catch (error) {
-         console.error("Error saving proof:", error);
-       }
-  */
-      // Step 4: Generate ZK proof
+      // Step 3: Generate ZK proof
       await generateZKProof(
         proposal,
         operationSig,
@@ -262,7 +244,8 @@ export default function ProposalDetailsPage() {
         const errorData = await signaturesResponse.json();
         console.error("API Error:", errorData);
         alert(
-          `Failed to fetch safe signatures: ${errorData.error || "Unknown error"
+          `Failed to fetch safe signatures: ${
+            errorData.error || "Unknown error"
           }`
         );
         return;
@@ -292,16 +275,30 @@ export default function ProposalDetailsPage() {
     console.log(identityPubX);
 
     const inputs = {
-      message_hash: Array.from(Buffer.from(keccak256(messageToSign).slice(2), 'hex')),
-      operation_signature: Array.from(Buffer.from(operationSignature.slice(2), 'hex')),
-      identity_verification_signature: Array.from(Buffer.from(identitySignature.slice(2), 'hex')).map(x => Number(x)),
-      identity_pub_x: Array.from(Buffer.from(identityPubX.slice(0), 'hex')).map(x => Number(x)),
-      identity_pub_y: Array.from(Buffer.from(identityPubY.slice(0), 'hex')).map(x => Number(x)),
-      operation_pub_x: Array.from(Buffer.from(identityPubX.slice(0), 'hex')),
-      operation_pub_y: Array.from(Buffer.from(identityPubY.slice(0), 'hex')),
-      signers_identifiers: Array(3).fill(signaturesHashesArray[0]).flatMap(hash => Array.from(Buffer.from(hash.slice(2), 'hex'))),
+      message_hash: Array.from(
+        Buffer.from(keccak256(messageToSign).slice(2), "hex")
+      ),
+      operation_signature: Array.from(
+        Buffer.from(operationSignature.slice(2), "hex")
+      ),
+      identity_verification_signature: Array.from(
+        Buffer.from(identitySignature.slice(2), "hex")
+      ).map((x) => Number(x)),
+      identity_pub_x: Array.from(Buffer.from(identityPubX.slice(0), "hex")).map(
+        (x) => Number(x)
+      ),
+      identity_pub_y: Array.from(Buffer.from(identityPubY.slice(0), "hex")).map(
+        (x) => Number(x)
+      ),
+      operation_pub_x: Array.from(Buffer.from(identityPubX.slice(0), "hex")),
+      operation_pub_y: Array.from(Buffer.from(identityPubY.slice(0), "hex")),
+      signers_identifiers: Array(3)
+        .fill(signaturesHashesArray[0])
+        .flatMap((hash) => Array.from(Buffer.from(hash.slice(2), "hex"))),
       threshold,
-      contract_address: Array.from(Buffer.from(proposal.zkOwnerAddress.slice(2), 'hex')),
+      contract_address: Array.from(
+        Buffer.from(proposal.zkOwnerAddress.slice(2), "hex")
+      ),
     };
     console.log("Input pub x", inputs.operation_pub_x);
 
@@ -364,6 +361,37 @@ export default function ProposalDetailsPage() {
       };
 
       console.log("Proof data", proofData);
+
+      // Save ZK proof data to database
+      try {
+        const response = await fetch("/api/proof-save-zk", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            proposalId: proposal.id,
+            safeAddress: proposal.safeAddress,
+            zkOwnerAddress: proposal.zkOwnerAddress,
+            signature: operationSignature,
+            zkProofData: proofData,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log("ZK proof saved successfully:", result);
+          alert("ZK proof generated and saved successfully!");
+          fetchProposal(); // Refresh proposal data
+        } else {
+          const error = await response.json();
+          console.error("Failed to save ZK proof:", error);
+          alert(`Failed to save ZK proof: ${error.error || "Unknown error"}`);
+        }
+      } catch (error) {
+        console.error("Error saving ZK proof:", error);
+        alert("Error saving ZK proof");
+      }
     } else {
       alert("Proof verification failed!");
     }
@@ -383,6 +411,64 @@ export default function ProposalDetailsPage() {
     const shareableUrl = `${window.location.origin}/app/proposal/${proposalId}`;
     navigator.clipboard.writeText(shareableUrl);
     alert("Shareable link copied to clipboard!");
+  };
+
+  const handleSendZkTransaction = async () => {
+    if (!proposal || !isConnected || !address) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    try {
+      console.log("Preparing ZK transaction...");
+
+      // Collect all ZK proof data from the proposal proofs
+      const zkProofDataArray = [];
+
+      for (const proof of proposal.proofs) {
+        try {
+          const response = await fetch(`/api/proof-get-zk/${proof.id}`);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.proof.zkProofData) {
+              zkProofDataArray.push(result.proof.zkProofData);
+            }
+          }
+        } catch (error) {
+          console.error(
+            `Error fetching ZK proof for proof ${proof.id}:`,
+            error
+          );
+        }
+      }
+
+      if (zkProofDataArray.length === 0) {
+        alert(
+          "No ZK proof data found. Please ensure all proofs have been generated with ZK data."
+        );
+        return;
+      }
+
+      console.log("Collected ZK proofs:", zkProofDataArray);
+
+      // TODO: Implement on-chain transaction execution
+      // This will involve:
+      // 1. Preparing the transaction data with ZK proofs
+      // 2. Calling the smart contract method to execute with ZK verification
+      // 3. Handling the transaction confirmation
+
+      alert(`Ready to send ZK transaction with ${zkProofDataArray.length} ZK proofs! 
+      
+Implementation needed:
+- Smart contract interaction
+- ZK proof verification on-chain
+- Transaction execution
+
+Proof data collected and ready for on-chain execution.`);
+    } catch (error) {
+      console.error("Error preparing ZK transaction:", error);
+      alert("Failed to prepare ZK transaction");
+    }
   };
 
   if (loading) {
@@ -449,29 +535,32 @@ export default function ProposalDetailsPage() {
       <div className="bg-neutral-800 rounded-xl p-8 text-neutral-300 space-y-6">
         {/* Status Banner */}
         <div
-          className={`p-4 rounded-lg ${isComplete
-            ? "bg-green-900/20 border border-green-500/20"
-            : "bg-yellow-900/20 border border-yellow-500/20"
-            }`}
+          className={`p-4 rounded-lg ${
+            isComplete
+              ? "bg-green-900/20 border border-green-500/20"
+              : "bg-yellow-900/20 border border-yellow-500/20"
+          }`}
         >
           <div className="flex justify-between items-center">
             <div>
               <div
-                className={`text-lg font-semibold ${isComplete ? "text-green-400" : "text-yellow-400"
-                  }`}
+                className={`text-lg font-semibold ${
+                  isComplete ? "text-green-400" : "text-yellow-400"
+                }`}
               >
                 {isComplete ? "✅ Ready to Execute" : "⏳ Pending Signatures"}
               </div>
               <div className="text-sm text-neutral-400">
-                {committed}/{proposal.threshold} signatures collected
+                {committed}/{proposal.threshold} proofs collected
                 {!isComplete && ` (${missing} more needed)`}
               </div>
             </div>
             <div className="text-right">
               <div className="w-full bg-neutral-700 rounded-full h-2 mb-2">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${isComplete ? "bg-green-500" : "bg-yellow-500"
-                    }`}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    isComplete ? "bg-green-500" : "bg-yellow-500"
+                  }`}
                   style={{
                     width: `${Math.min(
                       (committed / proposal.threshold) * 100,
@@ -535,14 +624,14 @@ export default function ProposalDetailsPage() {
           </div>
         </div>
 
-        {/* Signatures/Proofs */}
+        {/* Proofs */}
         <div className="bg-neutral-900 rounded-lg p-6">
           <h3 className="font-semibold mb-4 text-blue-400">
-            Signatures ({proposal.proofs.length})
+            Proofs ({proposal.proofs.length})
           </h3>
           {proposal.proofs.length === 0 ? (
             <div className="text-neutral-400 text-center py-4">
-              No signatures submitted yet
+              No proofs submitted yet
             </div>
           ) : (
             <div className="space-y-3">
@@ -550,14 +639,76 @@ export default function ProposalDetailsPage() {
                 <div key={proof.id} className="bg-neutral-800 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-sm font-medium text-neutral-400">
-                      Signature #{index + 1}
+                      Proof #{index + 1}
                     </span>
-                    <span className="text-xs text-neutral-500">
-                      ID: {proof.id}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(proof.value);
+                          alert("Signature proof copied to clipboard!");
+                        }}
+                        className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded"
+                      >
+                        Copy Signature
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(
+                              `/api/proof-get-zk/${proof.id}`
+                            );
+                            if (response.ok) {
+                              const result = await response.json();
+                              if (result.proof.zkProofData) {
+                                navigator.clipboard.writeText(
+                                  JSON.stringify(
+                                    result.proof.zkProofData,
+                                    null,
+                                    2
+                                  )
+                                );
+                                alert("ZK proof data copied to clipboard!");
+                              } else {
+                                alert(
+                                  "No ZK proof data available for this proof"
+                                );
+                              }
+                            } else {
+                              alert("Failed to fetch ZK proof data");
+                            }
+                          } catch (error) {
+                            console.error("Error fetching ZK proof:", error);
+                            alert("Error fetching ZK proof data");
+                          }
+                        }}
+                        className="text-xs bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded"
+                      >
+                        Copy ZK Data
+                      </button>
+                      <span className="text-xs text-neutral-500">
+                        ID: {proof.id}
+                      </span>
+                    </div>
                   </div>
                   <div className="text-white font-mono text-xs break-all">
-                    {proof.value}
+                    {proof.value.length > 100
+                      ? `${proof.value.slice(0, 50)}...${proof.value.slice(
+                          -50
+                        )}`
+                      : proof.value}
+                  </div>
+                  <div className="text-xs text-neutral-500 mt-1 flex justify-between items-center">
+                    <div>
+                      {proof.value.length > 100 && (
+                        <span>
+                          Truncated ({proof.value.length} characters total)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-400">✓ Signature</span>
+                      {/* ZK proof status will be shown here if we fetch it */}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -567,19 +718,39 @@ export default function ProposalDetailsPage() {
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          <Button
-            onClick={handleSign}
-            disabled={signing || !isConnected}
-            className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl px-6 py-3"
-          >
-            {signing ? "Signing..." : "Sign Proposal"}
-          </Button>
-          <Button
-            onClick={copyShareableLink}
-            className="bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl px-6 py-3"
-          >
-            Share Link
-          </Button>
+          {isComplete ? (
+            <>
+              <Button
+                onClick={handleSendZkTransaction}
+                disabled={!isConnected}
+                className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl px-6 py-3"
+              >
+                🚀 Send ZK Transaction
+              </Button>
+              <Button
+                onClick={copyShareableLink}
+                className="bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl px-6 py-3"
+              >
+                Share Link
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={handleSign}
+                disabled={signing || !isConnected}
+                className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl px-6 py-3"
+              >
+                {signing ? "Signing..." : "Sign Proposal"}
+              </Button>
+              <Button
+                onClick={copyShareableLink}
+                className="bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl px-6 py-3"
+              >
+                Share Link
+              </Button>
+            </>
+          )}
         </div>
 
         {!isConnected && (
@@ -591,3 +762,83 @@ export default function ProposalDetailsPage() {
     </div>
   );
 }
+
+
+
+/*
+
+// get next nonce of safe
+  const nextNonce = await client.readContract({
+    address: params.fromSafeAddress,
+    abi: SafeABI,
+    functionName: 'nonce'
+  }) as bigint;
+
+  // prepare the hash of the txData for safe
+  const hashMessage = prepareHashMessage({
+    safeAddress: fromSafeAddress,
+    nonce: nextNonce,
+    value: amount,
+    data: '0x00',
+    to: to,
+  });
+
+
+  const prepareHashMessage = (params: {
+  to: `0x${string}`,
+  value: bigint,
+  nonce: bigint,
+  data: `0x${string}`,
+  safeAddress: `0x${string}`,
+}): `0x${string}` => {
+  const {to, value, nonce, data, safeAddress} = params;
+
+  // The EIP712 domain separator
+  const domain: any = {
+    chainId: 8453,
+    verifyingContract: safeAddress,
+  };
+
+  // The EIP712 type definitions
+  const types = {
+    SafeTx: [
+      { name: 'to', type: 'address' },
+      { name: 'value', type: 'uint256' },
+      { name: 'data', type: 'bytes' },
+      { name: 'operation', type: 'uint8' },
+      { name: 'safeTxGas', type: 'uint256' },
+      { name: 'baseGas', type: 'uint256' },
+      { name: 'gasPrice', type: 'uint256' },
+      { name: 'gasToken', type: 'address' },
+      { name: 'refundReceiver', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+    ],
+  };
+
+  // The EIP712 typed message containing the Safe transaction
+  const typedMessage = {
+    to: to,
+    value: value,
+    data: '0x00',
+    operation: '0',
+    baseGas: 0,
+    gasPrice: 0,
+    gasToken: '0x0000000000000000000000000000000000000000',
+    refundReceiver: '0x0000000000000000000000000000000000000000',
+    nonce: nonce,
+    safeTxGas: 0,
+  };
+
+  return hashTypedData({
+    types,
+    message: typedMessage,
+    domain,
+    primaryType: 'SafeTx',
+  });
+}
+
+
+
+
+
+*/

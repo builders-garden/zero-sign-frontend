@@ -47,6 +47,8 @@ model Proposal {
 model Proof {
   id         Int      @id @default(autoincrement())
   value      String
+  zkProofData String? // JSON string containing the ZK proof data (rawProof, vkAsFields, etc.)
   proposal   Proposal @relation(fields: [proposalId], references: [id])
   proposalId Int
+  createdAt  DateTime @default(now())
 }
